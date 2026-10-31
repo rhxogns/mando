@@ -442,7 +442,7 @@ const stName=s=>(STATUS.find(x=>x[0]===s)||STATUS[0])[1];
 const jName=j=>(JUDGE.find(x=>x[0]===j)||JUDGE[0])[1];
 function libById(id){if(id&&id.startsWith("ex:"))return{id,name:"",short:"",geom:id.slice(3),hatch:"none",widths:""};
   return S.lib.find(t=>t.id===id)||{id,name:id,short:id,geom:"area",hatch:"none",widths:""}}
-function page(n=S.n){const p=S.doc.pages[n]||(S.doc.pages[n]={label:"",scale:0,items:[]});p.exj=p.exj||{};p.exq=p.exq||{};return p}
+function page(n=S.n){const p=S.doc.pages[n]||(S.doc.pages[n]={label:"",scale:0,items:[]});p.exj=p.exj||{};p.exq=p.exq||{};p.exp=p.exp||{};return p}
 
 /* ---------- utils ---------- */
 const fmt=v=>{if(v===""||v==null||isNaN(v))return"";return String(+(+v).toFixed(3))};
@@ -535,6 +535,12 @@ function hatchGeom(poly,style,sp){const o={segs:[],dots:[],fill:false};if(poly.l
       for(let y=Math.ceil(b.y/step)*step+off;y<=b.y2;y+=step,row++)for(let x=Math.ceil(b.x/step)*step+(row%2?step/2:0)+off;x<=b.x2;x+=step)if(inPoly([x,y],poly))o.dots.push([x,y])}}
   return o}
 
+/* ---------- 사진번호 (#0000) ---------- */
+const phText=ph=>String(ph||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>"#"+x).join(", ");
+function lastPhoto(){return +S.opt.lastPhoto||0}
+function notePhoto(ph){const ns=String(ph||"").split(",").map(x=>parseInt(x)).filter(x=>x>0);if(ns.length){S.opt.lastPhoto=Math.max(...ns);saveOpt()}}
+function phChips(){const l=lastPhoto();return l?[String(l+1),String(l+2),String(l)]:[]}
+
 /* ---------- labels for drawn items ---------- */
 const shortOf=n=>String(n).replace(/\(.*?\)/g,"").trim()||n;
 function typeOf(it){const t=libById(it.type);return it.tname?Object.assign({},t,{name:it.tname,short:shortOf(it.tname)}):t}
@@ -552,9 +558,10 @@ function labelLayout(it,measure){const fs=S.opt.fs,t=typeOf(it),W=measure||txtW;
   const tx=no?x+2*r+fs*.25:x;const lines=[];
   if(hasTop)lines.push({t:name,x:tx,y:y1,size:fs*.85,bold:false});
   lines.push({t:q,x:tx,y:yq,size:fs,bold:true});
+  if(it.ph)lines.push({t:phText(it.ph),x:tx,y:yq+fs*1.1,size:fs*.9,bold:true,ph:true});
   const circ=no?{cx:x+r,cy:(hasTop?y1:yq)-fs*.32,r,no,size:no.length>2?fs*.62:no.length>1?fs*.74:fs*.8}:null;
   const w=(tx-x)+Math.max(...lines.map(l=>W(l.t,l.size)))+fs*.4;const top=(hasTop?y1:yq)-fs*.95;
-  return{box:{x:x-fs*.2,y:top,w,h:yq+fs*.3-top},circ,lines}}
+  const bot=(it.ph?yq+fs*1.1:yq)+fs*.3;return{box:{x:x-fs*.2,y:top,w,h:bot-top},circ,lines}}
 function labelBox(it){return labelLayout(it).box}
 
 /* ---------- swatch ---------- */
@@ -586,11 +593,12 @@ function itemSVG(it){
   if(S.sel===it.id){const b=bbox(it.pts),p=2;g+=`<rect x="${lb.x-1}" y="${lb.y-1}" width="${lb.w+2}" height="${lb.h+2}" fill="none" stroke="#2a6fdb" stroke-width=".5" stroke-dasharray="1.5 1"/><rect x="${b.x-p}" y="${b.y-p}" width="${b.w+p*2}" height="${b.h+p*2}" fill="none" stroke="#2a6fdb" stroke-width=".6" stroke-dasharray="2 1.2"/>`}
   return g+"</g>"}
 function incItemOf(n,no){const p=S.doc.pages[n];return p?p.items.find(i=>i.kind==="damage"&&i.prog===no):null}
-function exTag(n,row){const j=exJ(n,row);if(j==="keep")return"";if(j==="prog"){const q=page(n).exq[row.no];const inc=incItemOf(n,row.no);return "진행 "+rowQtyText(row,q)+(inc?` → ${inc.no}`:"")}return jName(j)}
+function exTag(n,row){const j=exJ(n,row);if(j==="keep"||j==="prog")return"";if(j==="prog"){const q=page(n).exq[row.no];const inc=incItemOf(n,row.no);return "진행 "+rowQtyText(row,q)+(inc?` → ${inc.no}`:"")}return jName(j)}
 function exSVG(n){if(!S.opt.showEx)return"";let s="";const fs=S.opt.fs;
   for(const row of exRows(n)){const R=exRing(n,row);if(!R)continue;const j=exJ(n,row),ch=exChanged(n,row),c=exColor(j,row.yr),sel=S.selEx===row.no;
     s+=`<circle cx="${R.cx.toFixed(2)}" cy="${R.cy.toFixed(2)}" r="${R.r.toFixed(2)}" fill="${sel?"rgba(42,111,219,.12)":"none"}" stroke="${sel?"#2a6fdb":c}" stroke-width="${ch||sel?.9:.35}" ${ch?"":'stroke-dasharray="1 .8"'}/>`;
     if(j==="del"&&ch)s+=`<path d="M${R.cx-R.r} ${R.cy-R.r}L${R.cx+R.r} ${R.cy+R.r}" stroke="${c}" stroke-width=".7"/>`;
+    const ph=S.doc.pages[n]&&S.doc.pages[n].exp&&S.doc.pages[n].exp[row.no];if(ph)s+=`<text x="${(R.cx-R.r).toFixed(2)}" y="${(R.cy+R.r+fs*2.1).toFixed(2)}" font-size="${(fs*.9).toFixed(2)}" font-weight="700" fill="${S.opt.stNew}" stroke="#fff" stroke-width="${fs*.22}" paint-order="stroke">${esc(phText(ph))}</text>`;
     const tag=ch?exTag(n,row):"";if(tag)s+=`<text x="${(R.cx-R.r).toFixed(2)}" y="${(R.cy-R.r-1).toFixed(2)}" font-size="${fs*.9}" font-weight="700" fill="${c}" stroke="#fff" stroke-width="${fs*.22}" paint-order="stroke">${esc(tag)}</text>`}
   return s}
 function redraw(){const pg=page();let s=exSVG(S.n);for(const it of pg.items)s+=itemSVG(it);s+=`<g id="live"></g>`;ov.innerHTML=s;
@@ -626,8 +634,8 @@ let lblDirty=false;function commitLabel(){if(!S.pdf||!lblDirty)return;lblDirty=f
 const pageLabel=n=>(S.doc.pages[n]&&S.doc.pages[n].label)||(S.ex[n]&&S.ex[n].title)||"";
 
 /* ---------- undo (per page: items + existing judgments) ---------- */
-const pstate=()=>JSON.stringify({items:page().items,exj:page().exj,exq:page().exq});
-function restore(s){const o=JSON.parse(s);const p=page();p.items=o.items;p.exj=o.exj||{};p.exq=o.exq||{}}
+const pstate=()=>JSON.stringify({items:page().items,exj:page().exj,exq:page().exq,exp:page().exp});
+function restore(s){const o=JSON.parse(s);const p=page();p.items=o.items;p.exj=o.exj||{};p.exq=o.exq||{};p.exp=o.exp||{}}
 function snap(){const k=S.n;(S.undo[k]=S.undo[k]||[]).push(pstate());if(S.undo[k].length>80)S.undo[k].shift();S.redo[k]=[]}
 function undo(){const k=S.n,u=S.undo[k];if(!u||!u.length)return toast("되돌릴 작업이 없습니다");(S.redo[k]=S.redo[k]||[]).push(pstate());restore(u.pop());S.sel=null;S.selEx=null;redraw();autosave()}
 function redo(){const k=S.n,r=S.redo[k];if(!r||!r.length)return;S.undo[k].push(pstate());restore(r.pop());redraw();autosave()}
@@ -759,31 +767,35 @@ function newDamage(t,pts){const pg=page();const fs=S.opt.fs;
   liveSet(itemSVG(it));openQty(it,"new")}
 function fieldsOf(it){const g=libById(it.type).geom;let f;
   if(g==="line")f=[["w","폭 (mm)"],["L","길이 (m)"],["n","개소"]];else if(g==="area")f=[["a","가로 (m)"],["b","세로 (m)"],["n","개소"]];else f=[["n","개소 (EA)"]];
-  if(it.kind==="damage"&&it.st!=="new")f=[["yr","적출년도"]].concat(f);return f}
+  if(it.kind==="damage"&&it.st!=="new")f=[["yr","적출년도"]].concat(f);if(it.kind==="damage"||it.kind==="photo")f=it.kind==="photo"?[["ph","사진번호 (#)"]]:f.concat([["ph","사진번호 #"]]);return f}
 function openQty(it,mode,row){Q={it,mode,row,f:fieldsOf(it)[0][0],orig:JSON.stringify(it),fresh:true,pre:pstate()};
   const g=libById(it.type).geom;if(mode==="new")Q.f=g==="line"?(libById(it.type).widths?"w":"L"):g==="area"?"a":"n";renderQty();qty.hidden=false}
 function renderQty(){const it=Q.it,t=typeOf(it),isEx=Q.mode==="ex";
   const flds=fieldsOf(it);if(!flds.find(f=>f[0]===Q.f))Q.f=flds[0][0];
-  let chips=Q.f==="w"?(t.widths||"0.1,0.2,0.3").split(",").map(s=>s.trim()).filter(Boolean):Q.f==="n"?["1","2","3","4","5","6"]:Q.f==="yr"?knownYears():GEN_CHIPS.map(String);
-  const title=isEx?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">${esc(Q.row.yr)} 적출 · 진행 규모 입력</small>`:`${it.no?it.no+". ":""}${esc(t.name)}`;
-  const qv=isEx?rowQty(Q.row,it):qtyValue(it),qt=isEx?rowQtyText(Q.row,it):qtyText(it);
-  qty.innerHTML=`<div class="qh"><h4>${title}</h4>${isEx?"":`<div class="st">${STATUS.map(([k,n])=>{const c=k==="old"?yearColor(it.yr):k==="rep"?S.opt.stRep:S.opt.stNew;return `<button data-st="${k}" class="${it.st===k?"on":""}" style="${it.st===k?`background:${c}`:`color:${c}`}">${n}</button>`}).join("")}</div>`}</div>
-  ${!isEx&&it.st==="new"?`<div class="yrrow">적출년도 <b>${esc(it.yr||S.opt.curYear)}</b> (이번 조사)</div>`:""}
+  let chips=Q.f==="ph"?phChips().concat(["없음"]):Q.f==="w"?(t.widths||"0.1,0.2,0.3").split(",").map(s=>s.trim()).filter(Boolean):Q.f==="n"?["1","2","3","4","5","6"]:Q.f==="yr"?knownYears():GEN_CHIPS.map(String);
+  const isPh=Q.mode==="photo";
+  const title=isPh?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">기존 손상 사진번호</small>`:isEx?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">${esc(Q.row.yr)} 적출 · 진행 규모 입력</small>`:`${it.no?it.no+". ":""}${esc(t.name)}`;
+  const qv=isPh?{v:"",u:""}:isEx?rowQty(Q.row,it):qtyValue(it),qt=isPh?"":isEx?rowQtyText(Q.row,it):qtyText(it);
+  qty.innerHTML=`<div class="qh"><h4>${title}</h4>${isEx||isPh?"":`<div class="st">${STATUS.map(([k,n])=>{const c=k==="old"?yearColor(it.yr):k==="rep"?S.opt.stRep:S.opt.stNew;return `<button data-st="${k}" class="${it.st===k?"on":""}" style="${it.st===k?`background:${c}`:`color:${c}`}">${n}</button>`}).join("")}</div>`}</div>
+  ${!isEx&&!isPh&&it.st==="new"?`<div class="yrrow">적출년도 <b>${esc(it.yr||S.opt.curYear)}</b> (이번 조사)</div>`:""}
   <div class="fields">${flds.map(([k,l])=>`<div class="fld ${Q.f===k?"on":""}" data-f="${k}"><small>${l}</small><span>${esc(String(it[k]??""))}</span></div>`).join("")}</div>
-  <div class="chips">${chips.map(c=>`<button data-c="${c}">${c}</button>`).join("")}<span class="sp"></span><span class="prev">표기 <b>${esc(qt)}</b> · 물량 ${qv.v}${qv.u}</span></div>
-  <div class="pad">${["7","8","9","⌫","4","5","6","C","1","2","3","→","0",".","취소","확인"].map(k=>`<button data-k="${k}" class="${k==="확인"?"ok":k==="취소"||k==="→"||k==="C"?"cx":""}">${k}</button>`).join("")}</div>`;
+  <div class="chips">${chips.map(c=>`<button data-c="${c}">${c}</button>`).join("")}<span class="sp"></span><span class="prev">표기 <b>${esc(qt)}</b> · 물량 ${qv.v}${qv.u}${it.ph?` · <b>${esc(phText(it.ph))}</b>`:""}</span></div>
+  <div class="pad">${["7","8","9","⌫","4","5","6","C","1","2","3","→","0",".","취소","확인"].map(k=>`<button data-k="${k}" class="${k==="확인"?"ok":k==="취소"||k==="→"||k==="C"?"cx":""}">${k==="."&&Q.f==="ph"?",":k}</button>`).join("")}</div>`;
   if(Q.mode==="new")liveSet(itemSVG(it));else redraw()}
 qty.addEventListener("click",e=>{const b=e.target.closest("button,.fld");if(!b||!Q)return;const it=Q.it;
   if(b.dataset.st){it.st=b.dataset.st;if(it.st==="new")it.yr=String(S.opt.curYear);else if(String(it.yr)===String(S.opt.curYear)){const ys=knownYears().filter(y=>y!==String(S.opt.curYear));it.yr=ys.length?ys[ys.length-1]:""}return renderQty()}
   if(b.dataset.f){Q.f=b.dataset.f;Q.fresh=true;return renderQty()}
-  if(b.dataset.c){it[Q.f]=b.dataset.c;Q.fresh=false;nextField();return renderQty()}
+  if(b.dataset.c){if(Q.f==="ph"){const v=b.dataset.c==="없음"?"":b.dataset.c;it.ph=Q.fresh||!it.ph||!v?v:it.ph+","+v;Q.fresh=false;return renderQty()}it[Q.f]=b.dataset.c;Q.fresh=false;nextField();return renderQty()}
   const k=b.dataset.k;if(!k)return;let v=String(it[Q.f]??"");
   if(k==="확인")return commitQty();if(k==="취소")return cancelQty();
   if(k==="→"){nextField(true);return renderQty()}
-  if(k==="⌫")v=v.slice(0,-1);else if(k==="C")v="";else{if(Q.fresh)v="";if(k==="."&&(v.includes(".")||Q.f==="yr"||Q.f==="n"))return;v=(v===""&&k===".")?"0.":v+k}
+  if(k==="⌫")v=v.slice(0,-1);else if(k==="C")v="";else if(Q.f==="ph"){if(Q.fresh)v="";if(k==="."){if(!v||v.endsWith(","))return;v+=","}else v+=k}
+  else{if(Q.fresh)v="";if(k==="."&&(v.includes(".")||Q.f==="yr"||Q.f==="n"))return;v=(v===""&&k===".")?"0.":v+k}
   Q.fresh=false;it[Q.f]=Q.f==="n"?(v===""?"":parseInt(v)||""):v;renderQty()});
 function nextField(force){const f=fieldsOf(Q.it).map(x=>x[0]);const i=f.indexOf(Q.f);if(force||i<f.length-1){Q.f=f[(i+1)%f.length];Q.fresh=true}}
-function commitQty(){const it=Q.it;if(it.n===""||!it.n)it.n=1;
+function commitQty(){const it=Q.it;if(it.ph!=null)it.ph=String(it.ph).replace(/,+$/,"");notePhoto(it.ph);
+  if(Q.mode==="photo"){(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[];const p=page();if(it.ph)p.exp[Q.row.no]=it.ph;else delete p.exp[Q.row.no];qty.hidden=true;Q=null;redraw();autosave();return}
+  if(it.n===""||!it.n)it.n=1;
   for(const k of["w","L","a","b"])if(it[k]!==""&&it[k]!=null)it[k]=fmt(parseFloat(it[k]));
   const p=page();if(Q.mode!=="ex"){const fitted=fitToScale(it,Q.mode==="new");if(!fitted&&S.opt.toScale&&!scaleXY()&&libById(it.type).geom!=="point"&&!S.scaleHinted){S.scaleHinted=true;toast("축척을 설정하면 입력한 크기대로 도형이 자동으로 맞춰집니다 (상단 축척 도구)",4000)}}
   if(Q.mode==="new"){snap();p.items.push(it);if(!S.opt.repeat||it.prog)disarm()}
@@ -794,6 +806,7 @@ function commitQty(){const it=Q.it;if(it.n===""||!it.n)it.n=1;
     startInc(row,inc);return}
   else{(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[]}
   qty.hidden=true;Q=null;liveSet("");redraw();autosave()}
+function openExPhoto(row){const it={kind:"photo",type:"ex:point",ph:page().exp[row.no]||"",n:1};openQty(it,"photo",row);Q.f="ph";renderQty()}
 function cancelQty(){if(!Q)return;if(Q.mode==="new"&&S.armedInc)disarm();if(Q.mode==="edit")Object.assign(Q.it,JSON.parse(Q.orig));qty.hidden=true;Q=null;liveSet("");redraw()}
 function openExProg(row){const g=geomOfRow(row);const q=page().exq[row.no];
   const it={kind:"exq",type:"ex:"+g,w:q?q.w:(g==="line"?row.w:""),L:q?q.L:(g==="line"?row.L:""),a:q?q.a:(g==="area"?row.w:""),b:q?q.b:(g==="area"?row.L:""),n:q?q.n:(+row.n||1)};
@@ -825,12 +838,13 @@ const selbar=$("#selbar");const selIt=()=>page().items.find(i=>i.id===S.sel);con
 function renderSelbar(){const it=selIt(),row=selRow();
   if(row){const j=exJ(S.n,row);selbar.innerHTML=`<span class="lbl">기존 ${row.no}. ${esc(row.name)} <small style="color:var(--muted)">${esc(row.yr)}</small></span>`+
     JUDGE.map(([k,n])=>`<button class="btn ${j===k?"on":""}" data-j="${k}" style="${j===k?`background:${exColor(k,row.yr)}`:`color:${exColor(k,row.yr)}`}">${n}</button>`).join("")+
-    `<button class="btn" data-j="reset" title="PDF 비고대로">원래대로</button><button class="btn" data-x="1">✕</button>`;selbar.hidden=false;return}
+    `<button class="btn" data-ph="1" title="사진번호">📷 ${esc(phText(page().exp[row.no])||"사진#")}</button><button class="btn" data-j="reset" title="PDF 비고대로">원래대로</button><button class="btn" data-x="1">✕</button>`;selbar.hidden=false;return}
   if(it){selbar.innerHTML=(it.kind==="damage"?`<button class="btn" data-a="edit">수량 수정</button><button class="btn" data-a="type" id="sType">손상 변경</button><button class="btn" data-a="stat">상태: ${stName(it.st)}</button>`:"")+
     `<button class="btn" data-a="del" style="color:var(--accent)">삭제</button><button class="btn" data-x="1">✕</button>`;selbar.hidden=false;return}
   selbar.hidden=true}
 selbar.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.x){S.sel=null;S.selEx=null;redraw();return}
+  if(b.dataset.ph){const row=selRow();if(row)openExPhoto(row);return}
   if(b.dataset.j){const row=selRow();if(!row)return;const p=page();
     if(b.dataset.j==="prog"){openExProg(row);return}
     snap();if(b.dataset.j==="reset"){delete p.exj[row.no];delete p.exq[row.no]}else{p.exj[row.no]=b.dataset.j;if(b.dataset.j!=="prog")delete p.exq[row.no]}redraw();autosave();return}
@@ -1090,12 +1104,12 @@ function csvRowsFor(n){const lab=pageLabel(n);const out=[];
   for(const r of exRows(n)){const j=exJ(n,r),q=S.doc.pages[n]&&S.doc.pages[n].exq&&S.doc.pages[n].exq[r.no];const g=geomOfRow(r);const qv=rowQty(r,q);
     const q0=rowQty(r),inc=j==="prog"?incItemOf(n,r.no):null;
     out.push({페이지:n,도면명:lab,연번:r.no,구분:"기존",적출년도:r.yr,결함종류:r.name,폭:r.w,길이:r.L,깊이:r.d,
-      물량:f2(q0.v),단위:q0.u,개소:r.n,판정:jName(j),PDF비고:r.note,"진행(이번 조사)":q?`${rowQtyText(r,q)} (${f2(qv.v)}${qv.u})${inc?` → 증가분 ${inc.no}번`:""}`:"",보수년월:r.ry,"공법명/자재명":r.m,보수물량:r.rq,도면표기:rowQtyText(r)})}
+      물량:f2(q0.v),단위:q0.u,개소:r.n,판정:jName(j),PDF비고:r.note,"진행(이번 조사)":q?`${rowQtyText(r,q)} (${f2(qv.v)}${qv.u})${inc?` → 증가분 ${inc.no}번`:""}`:"",보수년월:r.ry,"공법명/자재명":r.m,보수물량:r.rq,도면표기:rowQtyText(r),사진번호:phText(S.doc.pages[n]&&S.doc.pages[n].exp&&S.doc.pages[n].exp[r.no])})}
   for(const it of drawnRows(n)){const t=typeOf(it),q=qtyValue(it);
     out.push({페이지:n,도면명:lab,연번:it.no||"",구분:it.prog?"신규(진행분)":it.st==="new"?"신규":it.st==="rep"?"보수(추가기입)":"기존(추가기입)",적출년도:it.yr||"",결함종류:t.name,폭:t.geom==="line"?it.w:t.geom==="area"?it.a:"",길이:t.geom==="line"?it.L:t.geom==="area"?it.b:"",깊이:"",
-      물량:f2(q.v),단위:q.u,개소:it.n||1,판정:it.st==="new"?"신규":stName(it.st),PDF비고:it.prog?`기존 ${it.prog}번 진행분`:"","진행(이번 조사)":"",보수년월:"","공법명/자재명":"",보수물량:"",도면표기:qtyText(it)})}
+      물량:f2(q.v),단위:q.u,개소:it.n||1,판정:it.st==="new"?"신규":stName(it.st),PDF비고:it.prog?`기존 ${it.prog}번 진행분`:"","진행(이번 조사)":"",보수년월:"","공법명/자재명":"",보수물량:"",도면표기:qtyText(it),사진번호:phText(it.ph)})}
   return out.sort((a,b)=>(+a.연번||0)-(+b.연번||0))}
-function toCSV(rows){const ks=["페이지","도면명","연번","구분","적출년도","결함종류","폭","길이","깊이","물량","단위","개소","판정","PDF비고","진행(이번 조사)","보수년월","공법명/자재명","보수물량","도면표기"];
+function toCSV(rows){const ks=["페이지","도면명","연번","구분","적출년도","결함종류","폭","길이","깊이","물량","단위","개소","판정","PDF비고","진행(이번 조사)","보수년월","공법명/자재명","보수물량","도면표기","사진번호"];
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};return"﻿"+ks.join(",")+"\n"+rows.map(r=>ks.map(k=>q(r[k])).join(",")).join("\n")+"\n"}
 async function saveFile(name,data){let dl=null;try{if(window.claude&&window.claude.use)dl=await window.claude.use("downloads")}catch(e){}
   const blob=data instanceof Blob?data:new Blob([data]);
@@ -1104,7 +1118,7 @@ async function saveFile(name,data){let dl=null;try{if(window.claude&&window.clau
 const base=()=>(S.name||"망도").replace(/\.pdf$/i,"");
 function stamp(){const d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`}
 async function parseAll(){for(let n=1;n<=S.count;n++){if(!S.ex[n]){await ensureEx(n);if(n%10===0)$("#busy").textContent=`기존 손상 읽는 중… ${n}/${S.count}쪽`}}$("#busy").textContent=""}
-function touchedPages(){return Object.keys(S.doc.pages).map(Number).filter(n=>{const p=S.doc.pages[n];return p.items.length||Object.keys(p.exj||{}).length}).sort((a,b)=>a-b)}
+function touchedPages(){return Object.keys(S.doc.pages).map(Number).filter(n=>{const p=S.doc.pages[n];return p.items.length||Object.keys(p.exp||{}).length||Object.keys(p.exj||{}).length}).sort((a,b)=>a-b)}
 $("#bExport").onclick=()=>{commitLabel();const tp=touchedPages();const nNew=tp.reduce((s,n)=>s+drawnRows(n).length,0);
   modal("내보내기",`<div class="exl">
    <button id="xCsv"><b>손상물량표 (.csv) — 열람·기입한 페이지</b><small>${pagesKnown().length}개 페이지 · 기존(PDF 물량표)+이번 기입 · 연번·적출년도·결함종류·폭·길이·물량·단위·개소·판정</small></button>
@@ -1148,7 +1162,9 @@ async function exportPdf(onlyMarked){closeModal();const marked=touchedPages();
       const line=(a,b,c,w)=>{const A=cv(a),B=cv(b);P.drawLine({start:{x:A[0],y:A[1]},end:{x:B[0],y:B[1]},thickness:w,color:c})};
       const text=(s,x,y,size,c)=>{const A=cv([x,y]);P.drawText(s,{x:A[0],y:A[1],size,font,color:c,rotate:degrees(rot)})};
       const box=(x,y,w,h)=>P.drawSvgPath(svgPath([[x,y],[x+w,y],[x+w,y+h],[x,y+h]])+" Z",{x:0,y:0,color:PDFLib.rgb(1,1,1),opacity:.8});
-      for(const row of exRows(n)){if(!exChanged(n,row))continue;const R=exRing(n,row);if(!R)continue;const j=exJ(n,row),c=hexRgb(exColor(j,row.yr));
+      for(const row of exRows(n)){const R=exRing(n,row);if(!R)continue;const eph=S.doc.pages[n].exp&&S.doc.pages[n].exp[row.no];
+        if(eph){const t2=phText(eph),tw=font.widthOfTextAtSize(t2,fs*.9);box(R.cx-R.r-.5,R.cy+R.r+fs*1.25,tw+1,fs*1.05);text(t2,R.cx-R.r,R.cy+R.r+fs*2.1,fs*.9,hexRgb(S.opt.stNew))}
+        if(!exChanged(n,row))continue;const j=exJ(n,row),c=hexRgb(exColor(j,row.yr));
         const A=cv([R.cx,R.cy]);P.drawCircle({x:A[0],y:A[1],size:R.r,borderColor:c,borderWidth:.9});
         if(j==="del")line([R.cx-R.r,R.cy-R.r],[R.cx+R.r,R.cy+R.r],c,.7);
         const tag=exTag(n,row);if(tag){const tw=font.widthOfTextAtSize(tag,fs*.9);box(R.cx-R.r-.5,R.cy-R.r-1-fs*.85,tw+1,fs*1.05);text(tag,R.cx-R.r,R.cy-R.r-1,fs*.9,c)}}
@@ -1196,7 +1212,8 @@ $("#mergeIn").onchange=async e=>{const files=[...e.target.files];e.target.value=
       for(const it of src.items||[]){if(dst.items.find(x=>x.id===it.id)){rep.same++;continue}const c=JSON.parse(JSON.stringify(it));if(c.kind==="damage"&&!c.by)c.by=tag;dst.items.push(c);cnt++;rep.pages.add(+k)}
       for(const no in (src.exj||{})){const v=src.exj[no],cur=dst.exj[no];
         if(cur&&cur!==v){rep.conflicts.push(`p.${k} 기존 ${no}번: ${jName(cur)} ↔ ${jName(v)} (${tag}) → '${jName(cur)}' 유지`);continue}
-        dst.exj[no]=v;if(src.exq&&src.exq[no])dst.exq[no]=src.exq[no];rep.pages.add(+k)}}
+        dst.exj[no]=v;if(src.exq&&src.exq[no])dst.exq[no]=src.exq[no];rep.pages.add(+k)}
+      for(const no in (src.exp||{})){const v=String(src.exp[no]),cur=dst.exp[no];if(!cur)dst.exp[no]=v;else if(cur!==v){const set=new Set((cur+","+v).split(",").filter(Boolean));dst.exp[no]=[...set].join(",")}rep.pages.add(+k)}}
     rep.added+=cnt;rep.files.push(`${f.name} — ${cnt}건`)}
   sv("mdn.lib2",S.lib);
   const order=$("#mgOrder")?$("#mgOrder").value:"pos";let dups=0;
@@ -1213,7 +1230,7 @@ $("#mergeIn").onchange=async e=>{const files=[...e.target.files];e.target.value=
    ${rep.conflicts.length?`<br><br><b>기존 손상 판정이 서로 다른 건</b><br>${rep.conflicts.map(s=>"· "+esc(s)).join("<br>")}`:""}
    <br><br>확인 후 상단 <b>[저장]</b>을 눌러 통합본 작업 파일로 저장하세요.</div>`);
   $("#panel").hidden=false;S.panelAll=true;$("#vAll").classList.add("on");$("#vPage").classList.remove("on");renderPanel()};
-function snapAll(){for(const k in S.doc.pages){(S.undo[k]=S.undo[k]||[]).push(JSON.stringify({items:S.doc.pages[k].items,exj:S.doc.pages[k].exj,exq:S.doc.pages[k].exq}));S.redo[k]=[]}}
+function snapAll(){for(const k in S.doc.pages){(S.undo[k]=S.undo[k]||[]).push(JSON.stringify({items:S.doc.pages[k].items,exj:S.doc.pages[k].exj,exp:S.doc.pages[k].exp,exq:S.doc.pages[k].exq}));S.redo[k]=[]}}
 
 /* ---------- modal / settings ---------- */
 function modal(title,html){$("#mTitle").textContent=title;$("#mBody").innerHTML=html;$("#modal").hidden=false}
@@ -1312,7 +1329,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="1.4";
+const APP_VERSION="1.5";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
