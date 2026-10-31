@@ -492,12 +492,12 @@ function parseExisting(items){
       if(best)row[best]=(row[best]?row[best]+" ":"")+s}
     row.name=row.name.replace(/\s+/g," ").trim();rows.push(row)}
   // drawing labels: number token followed (to the right, same line) by a non-numeric token
-  const labels={};const draw=items.filter(i=>i.x<x0-4);
-  for(const t of draw){const s=t.s.trim();if(!/^\d{1,3}$/.test(s))continue;
-    const nb=draw.find(o=>o!==t&&o.x>t.x+2&&o.x<t.x+t.h*3.2&&Math.abs(o.y-t.y)<t.h*.5&&/[가-힣A-Za-z]/.test(o.s));
-    if(!nb)continue;const no=+s;if(!rows.find(r=>r.no===no))continue;
+  const labels={};let maxNo=0;const draw=items.filter(i=>i.x<x0-4);
+  for(const t of draw){const s=t.s.trim();const m=s.match(/^(\d{1,3})(?:\s+([가-힣A-Za-z].*))?$/);if(!m)continue;
+    const nb=m[2]?t:draw.find(o=>o!==t&&o.x>t.x+2&&o.x<t.x+t.h*3.2&&Math.abs(o.y-t.y)<t.h*.5&&/[가-힣A-Za-z]/.test(o.s));
+    if(!nb)continue;const no=+m[1];maxNo=Math.max(maxNo,no);if(!rows.find(r=>r.no===no))continue;
     if(!labels[no])labels[no]={x:t.x,y:t.y,h:t.h,nx:nb.x}}
-  return{rows,labels,title:titleOf(items)}}
+  return{rows,labels,maxNo,title:titleOf(items)}}
 function titleOf(items){const dm=items.find(i=>i.s.replace(/\s+/g,"")==="도면명");if(!dm)return"";
   const c=items.filter(i=>i!==dm&&i.x>dm.x+5&&Math.abs(i.y-dm.y)<4).sort((a,b)=>a.x-b.x);return c.length?c[0].s.trim():""}
 
@@ -515,7 +515,7 @@ function rowQtyText(row,q){const g=geomOfRow(row),x=S.opt.xch;q=q||{};const n=+(
 function rowQty(row,q){const g=geomOfRow(row);if(!q)return{v:+row.q||0,u:row.u||UNIT[g]};const n=+q.n||1;
   if(g==="line")return{v:r2((+q.L||0)*n),u:"m"};if(g==="area")return{v:r2((+q.a||0)*(+q.b||0)*n),u:"㎡"};return{v:n,u:"EA"}}
 function exRing(n,row){const lb=S.ex[n]&&S.ex[n].labels[row.no];if(!lb)return null;const w=txtW(String(row.no),lb.h);return{cx:lb.x+w/2,cy:lb.y-lb.h*.36,r:Math.max(lb.h*.78,w*.75),lb}}
-function nextNo(n=S.n){let m=0;for(const r of exRows(n))m=Math.max(m,r.no);for(const it of page(n).items)if(it.no)m=Math.max(m,it.no);return m+1}
+function nextNo(n=S.n){let m=(S.ex[n]&&S.ex[n].maxNo)||0;for(const r of exRows(n))m=Math.max(m,r.no);for(const it of page(n).items)if(it.no)m=Math.max(m,it.no);return m+1}
 function knownYears(){const ys=new Set([String(S.opt.curYear)]);for(const k in S.ex)for(const r of S.ex[k].rows)if(r.yr)ys.add(r.yr);
   for(const k in S.doc.pages)for(const it of S.doc.pages[k].items)if(it.yr)ys.add(String(it.yr));return[...ys].sort()}
 
@@ -536,6 +536,8 @@ function hatchGeom(poly,style,sp){const o={segs:[],dots:[],fill:false};if(poly.l
   return o}
 
 /* ---------- labels for drawn items ---------- */
+const shortOf=n=>String(n).replace(/\(.*?\)/g,"").trim()||n;
+function typeOf(it){const t=libById(it.type);return it.tname?Object.assign({},t,{name:it.tname,short:shortOf(it.tname)}):t}
 function qtyText(it){const g=libById(it.type).geom,x=S.opt.xch;const n=+it.n||1;const ea=n>1?` ${n}EA`:"";
   if(g==="line")return(it.w!==""&&it.w!=null?`${f1(it.w)}/${f1(it.L)}`:`L=${f1(it.L)}`)+ea;
   if(g==="area")return `${f1(it.a)}${x}${f1(it.b)}${ea}`;return `${n}EA`}
@@ -543,9 +545,9 @@ function qtyValue(it){const g=libById(it.type).geom,n=+it.n||1;
   if(g==="line")return{v:r2((+it.L||0)*n),u:"m"};if(g==="area")return{v:r2((+it.a||0)*(+it.b||0)*n),u:"㎡"};return{v:n,u:"EA"}}
 function anchorOf(it){const g=libById(it.type).geom;if(g==="line")return it.pts[it.pts.length-1];
   if(g==="area"){const b=bbox(it.pts);return[b.x2,b.y]}return it.pts[0]}
-function labelLines(it){const t=libById(it.type);const top=[it.no?String(it.no):"",S.opt.showName?(t.short||t.name):""].filter(Boolean).join(" ");return top?[top,qtyText(it)]:[qtyText(it)]}
+function labelLines(it){const t=typeOf(it);const top=[it.no?String(it.no):"",S.opt.showName?(t.short||t.name):""].filter(Boolean).join(" ");return top?[top,qtyText(it)]:[qtyText(it)]}
 /* label = ⓝ(적출년도 색 동그라미) + 손상명 / 그 아래 수량 */
-function labelLayout(it,measure){const fs=S.opt.fs,t=libById(it.type),W=measure||txtW;const name=S.opt.showName?(t.short||t.name):"",q=qtyText(it),no=it.no?String(it.no):"";
+function labelLayout(it,measure){const fs=S.opt.fs,t=typeOf(it),W=measure||txtW;const name=(S.opt.showName?(t.short||t.name):"")+(it.prog?`(${it.prog}번 진행분)`:""),q=qtyText(it),no=it.no?String(it.no):"";
   const x=it.lp[0],yq=it.lp[1],y1=yq-fs*1.15,r=fs*.62,hasTop=!!name;
   const tx=no?x+2*r+fs*.25:x;const lines=[];
   if(hasTop)lines.push({t:name,x:tx,y:y1,size:fs*.85,bold:false});
@@ -583,7 +585,8 @@ function itemSVG(it){
   for(const l of LO.lines)g+=`<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="${l.size.toFixed(2)}" ${l.bold?'font-weight="600"':""} fill="${c}" stroke="#fff" stroke-width="${(fs*.22).toFixed(2)}" paint-order="stroke" stroke-linejoin="round">${esc(l.t)}</text>`;
   if(S.sel===it.id){const b=bbox(it.pts),p=2;g+=`<rect x="${lb.x-1}" y="${lb.y-1}" width="${lb.w+2}" height="${lb.h+2}" fill="none" stroke="#2a6fdb" stroke-width=".5" stroke-dasharray="1.5 1"/><rect x="${b.x-p}" y="${b.y-p}" width="${b.w+p*2}" height="${b.h+p*2}" fill="none" stroke="#2a6fdb" stroke-width=".6" stroke-dasharray="2 1.2"/>`}
   return g+"</g>"}
-function exTag(n,row){const j=exJ(n,row);if(j==="keep")return"";if(j==="prog"){const q=page(n).exq[row.no];return "진행 "+rowQtyText(row,q)}return jName(j)}
+function incItemOf(n,no){const p=S.doc.pages[n];return p?p.items.find(i=>i.kind==="damage"&&i.prog===no):null}
+function exTag(n,row){const j=exJ(n,row);if(j==="keep")return"";if(j==="prog"){const q=page(n).exq[row.no];const inc=incItemOf(n,row.no);return "진행 "+rowQtyText(row,q)+(inc?` → ${inc.no}`:"")}return jName(j)}
 function exSVG(n){if(!S.opt.showEx)return"";let s="";const fs=S.opt.fs;
   for(const row of exRows(n)){const R=exRing(n,row);if(!R)continue;const j=exJ(n,row),ch=exChanged(n,row),c=exColor(j,row.yr),sel=S.selEx===row.no;
     s+=`<circle cx="${R.cx.toFixed(2)}" cy="${R.cy.toFixed(2)}" r="${R.r.toFixed(2)}" fill="${sel?"rgba(42,111,219,.12)":"none"}" stroke="${sel?"#2a6fdb":c}" stroke-width="${ch||sel?.9:.35}" ${ch?"":'stroke-dasharray="1 .8"'}/>`;
@@ -723,9 +726,9 @@ function chooseType(id){hideMenu();const t=libById(id);S.recent=[id,...S.recent.
     if(ot.geom!==t.geom)return toast(`단위가 다른 손상(${UNIT[ot.geom]}→${UNIT[t.geom]})으로는 바꿀 수 없습니다`);snap();it.type=id;redraw();autosave();return}
   if(t.geom==="point"&&menuAnchor){newDamage(t,[round([menuAnchor])[0]]);return}
   arm(id)}
-function arm(id){S.armed=id;const t=libById(id);$("#armedTx").textContent=t.name;$("#armed").classList.add("show");
+function arm(id,label,hint){S.armed=id;const t=libById(id);$("#armedTx").textContent=label||t.name;$("#armed").classList.add("show");if(hint){toast(hint,4500);return}
   toast(t.geom==="line"?`${t.name}: 손상 선을 따라 그리세요`:`${t.name}: 범위를 대각선으로 끌거나, 둘레를 한 바퀴 그리세요`,3000)}
-function disarm(){S.armed=null;$("#armed").classList.remove("show")}
+function disarm(){S.armed=null;S.armedInc=null;$("#armed").classList.remove("show")}
 $("#bDisarm").onclick=disarm;
 $("#bMenu").onclick=e=>{const r=e.currentTarget.getBoundingClientRect();const v=viewer.getBoundingClientRect();openMenu(r.left-200,r.bottom+4,toPage(v.left+v.width/2,v.top+v.height/2))};
 document.addEventListener("pointerdown",e=>{if(!dmenu.hidden&&!dmenu.contains(e.target)&&!e.target.closest("#bMenu,#sType"))hideMenu()},true);
@@ -748,8 +751,10 @@ const qty=$("#qty");let Q=null;
 function newDamage(t,pts){const pg=page();const fs=S.opt.fs;
   const it={id:uid(),kind:"damage",type:t.id,no:nextNo(),by:S.opt.by||"",t:Date.now(),pts,st:"new",yr:String(S.opt.curYear),w:"",L:"",a:"",b:"",n:1,lp:[0,0]};
   const sc=scaleXY(pg);
+  const INC=S.armedInc;
   if(t.geom==="line"){const ws=(t.widths||"").split(",").map(s=>s.trim()).filter(Boolean);it.w=ws.length?ws[0]:"";if(sc)it.L=fmt(Math.max(.1,Math.round(realLen(pts,sc)*10)/10))}
   if(t.geom==="area"&&sc){const b=bbox(pts);it.a=fmt(Math.max(.1,Math.round(b.w*sc[0]*10)/10));it.b=fmt(Math.max(.1,Math.round(b.h*sc[1]*10)/10))}
+  if(INC){it.prog=INC.no;if(INC.tname)it.tname=INC.tname;for(const k of["w","L","a","b","n"])if(INC.inc[k]!=null&&INC.inc[k]!=="")it[k]=INC.inc[k]}
   const an=anchorOf(it);it.lp=[r2(an[0]+fs*.5),r2(an[1]-fs*.4)];
   liveSet(itemSVG(it));openQty(it,"new")}
 function fieldsOf(it){const g=libById(it.type).geom;let f;
@@ -757,7 +762,7 @@ function fieldsOf(it){const g=libById(it.type).geom;let f;
   if(it.kind==="damage"&&it.st!=="new")f=[["yr","적출년도"]].concat(f);return f}
 function openQty(it,mode,row){Q={it,mode,row,f:fieldsOf(it)[0][0],orig:JSON.stringify(it),fresh:true,pre:pstate()};
   const g=libById(it.type).geom;if(mode==="new")Q.f=g==="line"?(libById(it.type).widths?"w":"L"):g==="area"?"a":"n";renderQty();qty.hidden=false}
-function renderQty(){const it=Q.it,t=libById(it.type),isEx=Q.mode==="ex";
+function renderQty(){const it=Q.it,t=typeOf(it),isEx=Q.mode==="ex";
   const flds=fieldsOf(it);if(!flds.find(f=>f[0]===Q.f))Q.f=flds[0][0];
   let chips=Q.f==="w"?(t.widths||"0.1,0.2,0.3").split(",").map(s=>s.trim()).filter(Boolean):Q.f==="n"?["1","2","3","4","5","6"]:Q.f==="yr"?knownYears():GEN_CHIPS.map(String);
   const title=isEx?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">${esc(Q.row.yr)} 적출 · 진행 규모 입력</small>`:`${it.no?it.no+". ":""}${esc(t.name)}`;
@@ -781,15 +786,39 @@ function nextField(force){const f=fieldsOf(Q.it).map(x=>x[0]);const i=f.indexOf(
 function commitQty(){const it=Q.it;if(it.n===""||!it.n)it.n=1;
   for(const k of["w","L","a","b"])if(it[k]!==""&&it[k]!=null)it[k]=fmt(parseFloat(it[k]));
   const p=page();if(Q.mode!=="ex"){const fitted=fitToScale(it,Q.mode==="new");if(!fitted&&S.opt.toScale&&!scaleXY()&&libById(it.type).geom!=="point"&&!S.scaleHinted){S.scaleHinted=true;toast("축척을 설정하면 입력한 크기대로 도형이 자동으로 맞춰집니다 (상단 축척 도구)",4000)}}
-  if(Q.mode==="new"){snap();p.items.push(it);if(!S.opt.repeat)disarm()}
-  else if(Q.mode==="ex"){(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[];p.exq[Q.row.no]={w:it.w,L:it.L,a:it.a,b:it.b,n:it.n};p.exj[Q.row.no]="prog"}
+  if(Q.mode==="new"){snap();p.items.push(it);if(!S.opt.repeat||it.prog)disarm()}
+  else if(Q.mode==="ex"){(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[];p.exq[Q.row.no]={w:it.w,L:it.L,a:it.a,b:it.b,n:it.n};p.exj[Q.row.no]="prog";
+    const row=Q.row,inc=incOf(row,p.exq[row.no]);qty.hidden=true;Q=null;liveSet("");redraw();autosave();
+    if(!inc){toast("규모가 늘지 않아 진행분은 추가하지 않았습니다");return}
+    if(incItemOf(S.n,row.no)){toast(`이미 ${row.no}번 진행분이 있습니다. 진행분 손상을 선택해 수량을 고치세요`,4000);return}
+    startInc(row,inc);return}
   else{(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[]}
   qty.hidden=true;Q=null;liveSet("");redraw();autosave()}
-function cancelQty(){if(!Q)return;if(Q.mode==="edit")Object.assign(Q.it,JSON.parse(Q.orig));qty.hidden=true;Q=null;liveSet("");redraw()}
+function cancelQty(){if(!Q)return;if(Q.mode==="new"&&S.armedInc)disarm();if(Q.mode==="edit")Object.assign(Q.it,JSON.parse(Q.orig));qty.hidden=true;Q=null;liveSet("");redraw()}
 function openExProg(row){const g=geomOfRow(row);const q=page().exq[row.no];
   const it={kind:"exq",type:"ex:"+g,w:q?q.w:(g==="line"?row.w:""),L:q?q.L:(g==="line"?row.L:""),a:q?q.a:(g==="area"?row.w:""),b:q?q.b:(g==="area"?row.L:""),n:q?q.n:(+row.n||1)};
   for(const k of["w","L","a","b"])if(it[k]!=="")it[k]=fmt(it[k]);
   openQty(it,"ex",row);Q.f=g==="line"?"L":g==="area"?"a":"n";renderQty()}
+
+/* ---------- 진행 → 이번 조사 신규 진행분 (기존은 그대로, 늘어난 만큼만 새 번호로) ---------- */
+function incOf(row,q){const g=geomOfRow(row);const n0=+row.n||1,n1=+q.n||n0;
+  if(g==="line"){const w0=+row.w||0,w1=q.w!==""&&q.w!=null?+q.w:w0,L0=+row.L||0,L1=+q.L||0,dL=r2(L1-L0);
+    if(dL>0)return{w:q.w!==""?fmt(w1):"",L:fmt(dL),n:n1};
+    if(n1>n0)return{w:q.w!==""?fmt(w1):"",L:fmt(L1),n:n1-n0};
+    if(w1>w0)return{w:fmt(w1),L:fmt(L1),n:n1,wOnly:true};return null}
+  if(g==="area"){const a0=+row.w||0,b0=+row.L||0,a1=+q.a||0,b1=+q.b||0,dA=r2(a1*b1-a0*b0);
+    if(dA<=0){if(n1>n0)return{a:fmt(a1),b:fmt(b1),n:n1-n0};return null}
+    if(Math.abs(a1-a0)<1e-9)return{a:fmt(a1),b:fmt(r2(b1-b0)),n:n1};
+    if(Math.abs(b1-b0)<1e-9)return{a:fmt(r2(a1-a0)),b:fmt(b1),n:n1};
+    return{a:fmt(a1),b:fmt(Math.max(.01,r2(dA/a1))),n:n1}}
+  return n1>n0?{n:n1-n0}:null}
+function matchType(name,g){const nm=String(name).replace(/\s+/g,"");return S.lib.find(t=>t.geom===g&&(t.name.replace(/\s+/g,"")===nm||(t.short||"").replace(/\s+/g,"")===nm))||null}
+function startInc(row,inc){const g=geomOfRow(row);const t=matchType(row.name,g);const id=t?t.id:"ex:"+g;
+  setToolQuiet("pen");S.selEx=null;S.armedInc={no:row.no,inc,tname:t?"":row.name};const R=exRing(S.n,row);
+  const q=g==="line"?(inc.w?`${inc.w}/${inc.L}`:`L=${inc.L}`):g==="area"?`${inc.a}X${inc.b}`:`${inc.n}EA`;
+  if(g==="point"){const p0=R?[r2(R.cx+R.r*2.2),r2(R.cy+R.r*3.2)]:[S.W/2,S.H/2];menuAnchor=p0;newDamage(t||libById(id),[p0]);return}
+  if(R)centerOn(R.cx,R.cy,2.4);
+  arm(id,`${row.no}번 진행분 ${q}`,`${row.no}번 ${row.name}: 늘어난 부분(${q}${inc.wOnly?", 폭 진행":""})을 기존 손상 옆에 그리세요. 이번 조사(${S.opt.curYear}) 신규 번호로 들어갑니다`)}
 
 /* ---------- selection bar ---------- */
 const selbar=$("#selbar");const selIt=()=>page().items.find(i=>i.id===S.sel);const selRow=()=>exRows(S.n).find(r=>r.no===S.selEx);
@@ -894,7 +923,7 @@ function pagesKnown(){const s=new Set(Object.keys(S.doc.pages).map(Number));for(
 function drawnRows(n){const p=S.doc.pages[n];return p?p.items.filter(i=>i.kind==="damage"):[]}
 function renderPanel(){if($("#panel").hidden)return;const pages=S.panelAll?pagesKnown():[S.n];
   const agg={};const jc={keep:0,prog:0,rep:0,del:0};let exN=0,newN=0;
-  for(const n of pages){for(const it of drawnRows(n)){const t=libById(it.type),q=qtyValue(it);const k=t.name+"|"+it.st;agg[k]=agg[k]||{nm:t.name,st:it.st,yr:it.yr,cnt:0,v:0,u:q.u};agg[k].cnt++;agg[k].v+=q.v;newN++}
+  for(const n of pages){for(const it of drawnRows(n)){const t=typeOf(it),q=qtyValue(it);const k=t.name+"|"+it.st;agg[k]=agg[k]||{nm:t.name,st:it.st,yr:it.yr,cnt:0,v:0,u:q.u};agg[k].cnt++;agg[k].v+=q.v;newN++}
     for(const r of exRows(n)){jc[exJ(n,r)]++;exN++}}
   const ag=Object.values(agg).sort((a,b)=>a.st.localeCompare(b.st)||a.nm.localeCompare(b.nm,"ko"));
   $("#sum").innerHTML=`<span class="h">이번 조사 기입 ${newN}건</span><span class="h" style="text-align:right">개소</span><span class="h" style="text-align:right">물량</span>`+
@@ -904,10 +933,10 @@ function renderPanel(){if($("#panel").hidden)return;const pages=S.panelAll?pages
   for(const n of pages){const dr=drawnRows(n),er=exRows(n);if(!dr.length&&!er.length&&S.panelAll)continue;
     if(S.panelAll)h+=`<div class="pgh" data-pg="${n}">p.${n} ${esc(pageLabel(n))}</div>`;
     if(dr.length){if(!S.panelAll)h+=`<div class="sec"><span>이번 조사 기입</span><span>${dr.length}건</span></div>`;
-      for(const it of dr){const t=libById(it.type),c=itemColor(it);h+=`<div class="row ${it.id===S.sel?"sel":""}" data-pg="${n}" data-id="${it.id}"><span class="no">${it.no||""}</span><span class="nm"><b>${esc(t.name)}</b><small><span class="yr">${esc(it.yr||"")}</span>${esc(qtyText(it))} → ${qtyValue(it).v}${qtyValue(it).u}${it.by?` · ${esc(it.by)}`:""}${it.dup?` · <b style="color:var(--accent)">중복 의심</b>`:""}</small></span><span class="pill" style="background:${c}">${stName(it.st)}</span></div>`}}
+      for(const it of dr){const t=typeOf(it),c=itemColor(it);h+=`<div class="row ${it.id===S.sel?"sel":""}" data-pg="${n}" data-id="${it.id}"><span class="no">${it.no||""}</span><span class="nm"><b>${esc(t.name)}</b><small><span class="yr">${esc(it.yr||"")}</span>${esc(qtyText(it))} → ${qtyValue(it).v}${qtyValue(it).u}${it.prog?` · 기존 ${it.prog}번 진행분`:""}${it.by?` · ${esc(it.by)}`:""}${it.dup?` · <b style="color:var(--accent)">중복 의심</b>`:""}</small></span><span class="pill" style="background:${c}">${stName(it.st)}</span></div>`}}
     if(er.length){if(!S.panelAll)h+=`<div class="sec"><span>기존 손상 (도면 물량표)</span><span>${er.length}건</span></div>`;
       for(const r of er){const j=exJ(n,r),ch=exChanged(n,r),c=exColor(j,r.yr);const q=S.doc.pages[n]&&S.doc.pages[n].exq&&S.doc.pages[n].exq[r.no];
-        h+=`<div class="row ${n===S.n&&r.no===S.selEx?"sel":""}" data-pg="${n}" data-ex="${r.no}"><span class="no">${r.no}</span><span class="nm"><b style="font-weight:500">${esc(r.name)}</b><small><span class="yr">${esc(r.yr)}</span>${esc(rowQtyText(r,q))} → ${rowQty(r,q).v}${rowQty(r,q).u}${S.ex[n].labels[r.no]?"":" · 도면 위치 못 찾음"}</small></span><span class="pill ${ch?"":"ghost"}" style="background:${c};color:${ch?"#fff":c}">${jName(j)}</span></div>`}}}
+        h+=`<div class="row ${n===S.n&&r.no===S.selEx?"sel":""}" data-pg="${n}" data-ex="${r.no}"><span class="no">${r.no}</span><span class="nm"><b style="font-weight:500">${esc(r.name)}</b><small><span class="yr">${esc(r.yr)}</span>${esc(rowQtyText(r))} → ${rowQty(r).v}${rowQty(r).u}${q?` · 진행 ${esc(rowQtyText(r,q))}`:""}${S.ex[n].labels[r.no]?"":" · 도면 위치 못 찾음"}</small></span><span class="pill ${ch?"":"ghost"}" style="background:${c};color:${ch?"#fff":c}">${jName(j)}</span></div>`}}}
   if(!h)h=`<div class="empty">펜으로 도면을 <b>길게 누르면</b> 손상 메뉴가 열립니다. 손상을 고르고 그린 뒤 수량을 입력하면 여기에 쌓입니다.<br><br>도면에 손상물량표가 있으면 기존 손상이 자동으로 읽혀서 여기에 나옵니다.</div>`;
   $("#list").innerHTML=h}
 $("#list").onclick=async e=>{const r=e.target.closest("[data-pg]");if(!r)return;const n=+r.dataset.pg;if(n!==S.n)await gotoPage(n);
@@ -1059,13 +1088,14 @@ async function loadPdf(buf,name,size,doc,isSample,key,startPage){$("#busy").text
 /* ---------- export ---------- */
 function csvRowsFor(n){const lab=pageLabel(n);const out=[];
   for(const r of exRows(n)){const j=exJ(n,r),q=S.doc.pages[n]&&S.doc.pages[n].exq&&S.doc.pages[n].exq[r.no];const g=geomOfRow(r);const qv=rowQty(r,q);
-    out.push({페이지:n,도면명:lab,연번:r.no,구분:"기존",적출년도:r.yr,결함종류:r.name,폭:q?(g==="line"?q.w:g==="area"?q.a:""):r.w,길이:q?(g==="line"?q.L:g==="area"?q.b:""):r.L,깊이:r.d,
-      물량:f2(qv.v),단위:qv.u,개소:q?q.n:r.n,판정:jName(j),PDF비고:r.note,전차물량:q?r.q:"",보수년월:r.ry,"공법명/자재명":r.m,보수물량:r.rq,도면표기:rowQtyText(r,q)})}
-  for(const it of drawnRows(n)){const t=libById(it.type),q=qtyValue(it);
-    out.push({페이지:n,도면명:lab,연번:it.no||"",구분:it.st==="new"?"신규":it.st==="rep"?"보수(추가기입)":"기존(추가기입)",적출년도:it.yr||"",결함종류:t.name,폭:t.geom==="line"?it.w:t.geom==="area"?it.a:"",길이:t.geom==="line"?it.L:t.geom==="area"?it.b:"",깊이:"",
-      물량:f2(q.v),단위:q.u,개소:it.n||1,판정:it.st==="new"?"신규":stName(it.st),PDF비고:"",전차물량:"",보수년월:"","공법명/자재명":"",보수물량:"",도면표기:qtyText(it)})}
+    const q0=rowQty(r),inc=j==="prog"?incItemOf(n,r.no):null;
+    out.push({페이지:n,도면명:lab,연번:r.no,구분:"기존",적출년도:r.yr,결함종류:r.name,폭:r.w,길이:r.L,깊이:r.d,
+      물량:f2(q0.v),단위:q0.u,개소:r.n,판정:jName(j),PDF비고:r.note,"진행(이번 조사)":q?`${rowQtyText(r,q)} (${f2(qv.v)}${qv.u})${inc?` → 증가분 ${inc.no}번`:""}`:"",보수년월:r.ry,"공법명/자재명":r.m,보수물량:r.rq,도면표기:rowQtyText(r)})}
+  for(const it of drawnRows(n)){const t=typeOf(it),q=qtyValue(it);
+    out.push({페이지:n,도면명:lab,연번:it.no||"",구분:it.prog?"신규(진행분)":it.st==="new"?"신규":it.st==="rep"?"보수(추가기입)":"기존(추가기입)",적출년도:it.yr||"",결함종류:t.name,폭:t.geom==="line"?it.w:t.geom==="area"?it.a:"",길이:t.geom==="line"?it.L:t.geom==="area"?it.b:"",깊이:"",
+      물량:f2(q.v),단위:q.u,개소:it.n||1,판정:it.st==="new"?"신규":stName(it.st),PDF비고:it.prog?`기존 ${it.prog}번 진행분`:"","진행(이번 조사)":"",보수년월:"","공법명/자재명":"",보수물량:"",도면표기:qtyText(it)})}
   return out.sort((a,b)=>(+a.연번||0)-(+b.연번||0))}
-function toCSV(rows){const ks=["페이지","도면명","연번","구분","적출년도","결함종류","폭","길이","깊이","물량","단위","개소","판정","PDF비고","전차물량","보수년월","공법명/자재명","보수물량","도면표기"];
+function toCSV(rows){const ks=["페이지","도면명","연번","구분","적출년도","결함종류","폭","길이","깊이","물량","단위","개소","판정","PDF비고","진행(이번 조사)","보수년월","공법명/자재명","보수물량","도면표기"];
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};return"﻿"+ks.join(",")+"\n"+rows.map(r=>ks.map(k=>q(r[k])).join(",")).join("\n")+"\n"}
 async function saveFile(name,data){let dl=null;try{if(window.claude&&window.claude.use)dl=await window.claude.use("downloads")}catch(e){}
   const blob=data instanceof Blob?data:new Blob([data]);
@@ -1150,7 +1180,7 @@ function overlapDup(a,b){if(a.type!==b.type)return false;const g=libById(a.type)
   const ix=Math.min(A.x2,B.x2)+pad-Math.max(A.x,B.x)+pad,iy=Math.min(A.y2,B.y2)+pad-Math.max(A.y,B.y)+pad;if(ix<=0||iy<=0)return false;
   if(g==="line")return polyDist(a.pts[0],b.pts)<6||polyDist(b.pts[0],a.pts)<6;
   const inter=ix*iy,uni=(A.w+2)*(A.h+2)+(B.w+2)*(B.h+2)-inter;return inter/uni>.3}
-async function renumberPage(n,order){await ensureEx(n);const p=page(n);let no=0;for(const r of exRows(n))no=Math.max(no,r.no);
+async function renumberPage(n,order){await ensureEx(n);const p=page(n);let no=(S.ex[n]&&S.ex[n].maxNo)||0;for(const r of exRows(n))no=Math.max(no,r.no);
   const ds=p.items.filter(i=>i.kind==="damage");
   ds.sort(order==="time"?(a,b)=>(a.t||0)-(b.t||0):(a,b)=>{const A=itemRef(a),B=itemRef(b);return Math.abs(A[0]-B[0])>8?A[0]-B[0]:A[1]-B[1]});
   for(const it of ds)it.no=++no}
@@ -1282,7 +1312,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="1.3";
+const APP_VERSION="1.4";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
