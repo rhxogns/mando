@@ -447,6 +447,10 @@ const DEF_LIB=[
  L_("drc","배수구막힘","배수구막힘","point","EA","x"),
  L_("etc","기타","기타","point","EA","x")
 ];
+/* 추가 입력값: depth → T(mm) 깊이, cw → 망상균열 등 면적 손상의 균열폭 */
+const FLAG_DEF={scal:{depth:true},spall:{depth:true},step:{depth:true},net:{cw:true},netef:{cw:true}};
+DEF_LIB.splice(DEF_LIB.findIndex(t=>t.id==="dfm")+1,0,L_("step","단차","단차","line","m","dashed"));
+for(const t of DEF_LIB)Object.assign(t,FLAG_DEF[t.id]||{});
 const TAGS=[["","없음"],["상","상반기"],["하","하반기"],["정기","정기점검"],["정밀","정밀점검"],["진단","정밀안전진단"],["성능","성능평가"]];
 const DEF_OPT={fs:6,showName:true,showEx:true,hatchSp:2.2,lw:0.6,lwThick:1.1,fingerDraw:false,repeat:false,
   stNew:"#e01b24",stOld:"#111111",stRep:"#1f5fd1",stDel:"#8a9099",yearColors:{},curYear:new Date().getFullYear(),inkColor:"#e01b24",xch:"X",by:"",toScale:true};
@@ -462,9 +466,10 @@ const S={pdf:null,bytes:null,name:"",size:0,key:"",isSample:false,n:1,count:1,W:
 function ld(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 S.lib=ld("mdn.lib3",null)||JSON.parse(JSON.stringify(DEF_LIB));
-for(const t of S.lib){if((t.id==="rebar"||t.id==="rcor")&&t.geom==="line"){const d=DEF_LIB.find(x=>x.id===t.id);Object.assign(t,{geom:"area",hatch:d.hatch,shape:"rect"})}}
+for(const t of S.lib){if(FLAG_DEF[t.id]&&t.depth===undefined&&t.cw===undefined)Object.assign(t,FLAG_DEF[t.id]);if((t.id==="rebar"||t.id==="rcor")&&t.geom==="line"){const d=DEF_LIB.find(x=>x.id===t.id);Object.assign(t,{geom:"area",hatch:d.hatch,shape:"rect"})}}
 S.opt=Object.assign({},DEF_OPT,ld("mdn.opt2",{}));S.opt.yearColors=S.opt.yearColors||{};
 S.recent=ld("mdn.recent2",[]);
+if(!S.lib.find(t=>t.id==="step")){const d=DEF_LIB.find(t=>t.id==="step");const i=S.lib.findIndex(t=>t.id==="dfm");S.lib.splice(i>=0?i+1:S.lib.length,0,JSON.parse(JSON.stringify(d)))}
 const saveOpt=()=>sv("mdn.opt2",S.opt);
 const yearColor=yr=>S.opt.yearColors[String(yr||"").slice(-4)]||S.opt.stOld;
 const itemColor=it=>it.st==="rep"?S.opt.stRep:it.st==="old"?yearColor(it.yr):S.opt.stNew;
@@ -674,12 +679,14 @@ function labelLines(it){const t=typeOf(it);const top=[it.no?String(it.no):"",S.o
 /* label = ⓝ(적출년도 색 동그라미) + 손상명 / 수량 / ['26,상] / #사진 */
 const FSb=()=>(S.doc&&S.doc.fs)||S.opt.fs;
 function tagText(it){const tg=S.doc&&S.doc.tag;if(!tg||it.st!=="new")return"";return `['${String(it.yr||S.opt.curYear).slice(-2)},${tg}]`}
-function labelLayout(it,measure){const fs=FSb()*(it.ls||1),t=typeOf(it),W=measure||txtW;const name=(S.opt.showName?(t.short||t.name):"")+(it.prog?`(${it.prog}번 진행분)`:""),q=qtyText(it),no=it.no?String(it.no):"";
+function cwSuffix(it){return it.cw!==""&&it.cw!=null&&libById(it.type).geom!=="line"?`(cw=${fmt(it.cw)}㎜)`:""}
+function labelLayout(it,measure){const fs=FSb()*(it.ls||1),t=typeOf(it),W=measure||txtW;const name=(S.opt.showName?(t.short||t.name)+cwSuffix(it):"")+(it.prog?`(${it.prog}번 진행분)`:""),q=qtyText(it),no=it.no?String(it.no):"";
   const x=it.lp[0],yq=it.lp[1],y1=yq-fs*1.15,r=fs*.62,hasTop=!!name;
   const tx=no?x+2*r+fs*.25:x;const lines=[];
   if(hasTop)lines.push({t:name,x:tx,y:y1,size:fs*.85,bold:false});
   lines.push({t:q,x:tx,y:yq,size:fs,bold:true});
-  const tg=tagText(it);let yy=yq;if(tg){yy+=fs*1.05;lines.push({t:tg,x:tx,y:yy,size:fs*.8,bold:false})}
+  let yy=yq;if(it.T!==""&&it.T!=null){yy+=fs*1.05;lines.push({t:`T=${fmt(it.T)}mm`,x:tx,y:yy,size:fs*.85,bold:false})}
+  const tg=tagText(it);if(tg){yy+=fs*1.05;lines.push({t:tg,x:tx,y:yy,size:fs*.8,bold:false})}
   if(it.ph){yy+=fs*1.1;lines.push({t:phText(it.ph),x:tx,y:yy,size:fs*.9,bold:true,ph:true})}
   const circ=no?{cx:x+r,cy:(hasTop?y1:yq)-fs*.32,r,no,size:no.length>2?fs*.62:no.length>1?fs*.74:fs*.8}:null;
   const w=(tx-x)+Math.max(...lines.map(l=>W(l.t,l.size)))+fs*.4;const top=(hasTop?y1:yq)-fs*.95;
@@ -895,13 +902,16 @@ function newDamage(t,pts){const pg=page();const fs=FSb();
   if(lastPhoto()&&S.opt.autoPhoto!==false)it.ph=String(lastPhoto()+1);
   liveSet(itemSVG(it));openQty(it,"new");if(it.ph){Q.phAuto=it.ph;renderQty()}}
 function fieldsOf(it){const g=it.kind==="exq"?libById(it.type).geom:({m:"line","㎡":"area",EA:"point"})[unitOf(it)];let f;
-  if(g==="line")f=[["w","폭 (mm)"],["L","길이 (m)"],["n","개소"]];else if(g==="area")f=[["a","가로 (m)"],["b","세로 (m)"],["n","개소"]];else f=[["n","개소 (EA)"]];
+  const T=it.kind==="damage"?typeOf(it):{};
+  if(g==="line")f=[["w",T.cw||/균열/.test(T.name||"")?"Cw 폭 (mm)":"폭 (mm)"],["L","길이 (m)"]];else if(g==="area")f=[["a","가로 (m)"],["b","세로 (m)"]];else f=[];
+  if(T.cw&&g!=="line")f.push(["cw","Cw 균열폭 (mm)"]);if(T.depth)f.push(["T","깊이 T (mm)"]);
+  f.push(["n",g==="point"?"개소 (EA)":"개소"]);
   if(it.kind==="damage"&&it.st!=="new")f=[["yr","적출년도"]].concat(f);if(it.kind==="damage"||it.kind==="photo")f=it.kind==="photo"?[["ph","사진번호 (#)"]]:f.concat([["ph","사진번호 #"]]);return f}
 function openQty(it,mode,row){Q={it,mode,row,f:fieldsOf(it)[0][0],orig:JSON.stringify(it),fresh:true,pre:pstate()};
   const u=unitOf(it);if(mode==="new")Q.f=u==="m"?(libById(it.type).widths?"w":"L"):u==="㎡"?"a":"n";renderQty();qty.hidden=false}
 function renderQty(){const it=Q.it,t=typeOf(it),isEx=Q.mode==="ex";
   const flds=fieldsOf(it);if(!flds.find(f=>f[0]===Q.f))Q.f=flds[0][0];
-  let chips=Q.f==="ph"?phChips().concat(["없음"]):Q.f==="w"?(t.widths||"0.1,0.2,0.3").split(",").map(s=>s.trim()).filter(Boolean):Q.f==="n"?["1","2","3","4","5","6"]:Q.f==="yr"?knownYears():GEN_CHIPS.map(String);
+  let chips=Q.f==="cw"?["0.1","0.2","0.3","0.5"]:Q.f==="T"?["5","10","20","30","50"]:Q.f==="ph"?phChips().concat(["없음"]):Q.f==="w"?(t.widths||"0.1,0.2,0.3").split(",").map(s=>s.trim()).filter(Boolean):Q.f==="n"?["1","2","3","4","5","6"]:Q.f==="yr"?knownYears():GEN_CHIPS.map(String);
   const isPh=Q.mode==="photo";
   const title=isPh?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">기존 손상 사진번호</small>`:isEx?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">${esc(Q.row.yr)} 적출 · 진행 규모 입력</small>`:`${it.no?it.no+". ":""}${esc(t.name)}`;
   const qv=isPh?{v:"",u:""}:isEx?rowQty(Q.row,it):qtyValue(it),qt=isPh?"":isEx?rowQtyText(Q.row,it):qtyText(it);
@@ -926,7 +936,7 @@ function nextField(force){const f=fieldsOf(Q.it).map(x=>x[0]);const i=f.indexOf(
 function commitQty(){const it=Q.it;if(it.ph!=null)it.ph=String(it.ph).replace(/,+$/,"");notePhoto(it.ph);
   if(Q.mode==="photo"){(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[];const p=page();if(it.ph)p.exp[Q.row.no]=it.ph;else delete p.exp[Q.row.no];qty.hidden=true;Q=null;redraw();autosave();return}
   if(it.n===""||!it.n)it.n=1;
-  for(const k of["w","L","a","b"])if(it[k]!==""&&it[k]!=null)it[k]=fmt(parseFloat(it[k]));
+  for(const k of["w","L","a","b","cw","T"])if(it[k]!==""&&it[k]!=null)it[k]=fmt(parseFloat(it[k]));
   const p=page();if(Q.mode!=="ex"){const fitted=fitToScale(it,Q.mode==="new");if(!fitted&&S.opt.toScale&&!scaleXY()&&libById(it.type).geom!=="point"&&unitOf(it)!=="EA"&&!S.scaleHinted){S.scaleHinted=true;toast("축척을 설정하면 입력한 크기대로 도형이 자동으로 맞춰집니다 (상단 축척 도구)",4000)}}
   if(Q.mode==="new"){snap();p.items.push(it);if(!S.opt.repeat||it.prog)disarm()}
   else if(Q.mode==="ex"){(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[];p.exq[Q.row.no]={w:it.w,L:it.L,a:it.a,b:it.b,n:it.n};p.exj[Q.row.no]="prog";
@@ -1255,7 +1265,7 @@ function csvRowsFor(n){const lab=pageLabel(n);const out=[];
     out.push({페이지:n,도면명:lab,연번:r.no,구분:"기존",적출년도:r.yr,결함종류:r.name,폭:r.w,길이:r.L,깊이:r.d,
       물량:f2(q0.v),단위:q0.u,개소:r.n,판정:jName(j),PDF비고:r.note,"진행(이번 조사)":q?`${rowQtyText(r,q)} (${f2(qv.v)}${qv.u})${inc?` → 증가분 ${inc.no}번`:""}`:"",보수년월:r.ry,"공법명/자재명":r.m,보수물량:r.rq,도면표기:rowQtyText(r),사진번호:phText(S.doc.pages[n]&&S.doc.pages[n].exp&&S.doc.pages[n].exp[r.no])})}
   for(const it of drawnRows(n)){const t=typeOf(it),q=qtyValue(it);
-    out.push({페이지:n,도면명:lab,연번:it.no||"",구분:it.prog?"신규(진행분)":it.st==="new"?"신규":it.st==="rep"?"보수(추가기입)":"기존(추가기입)",적출년도:it.yr||"",결함종류:t.name,폭:q.u==="m"?it.w:q.u==="㎡"?it.a:"",길이:q.u==="m"?it.L:q.u==="㎡"?it.b:"",깊이:"",
+    out.push({페이지:n,도면명:lab,연번:it.no||"",구분:it.prog?"신규(진행분)":it.st==="new"?"신규":it.st==="rep"?"보수(추가기입)":"기존(추가기입)",적출년도:it.yr||"",결함종류:t.name+cwSuffix(it),폭:q.u==="m"?it.w:q.u==="㎡"?it.a:"",길이:q.u==="m"?it.L:q.u==="㎡"?it.b:"",깊이:it.T!==""&&it.T!=null?fmt(it.T/1000):"",
       물량:f2(q.v),단위:q.u,개소:it.n||1,판정:it.st==="new"?"신규":stName(it.st),PDF비고:it.prog?`기존 ${it.prog}번 진행분`:"","진행(이번 조사)":"",보수년월:"","공법명/자재명":"",보수물량:"",도면표기:qtyText(it),사진번호:phText(it.ph)})}
   return out.sort((a,b)=>(+a.연번||0)-(+b.연번||0))}
 function toCSV(rows){const ks=["페이지","도면명","연번","구분","적출년도","결함종류","폭","길이","깊이","물량","단위","개소","판정","PDF비고","진행(이번 조사)","보수년월","공법명/자재명","보수물량","도면표기","사진번호"];
@@ -1413,8 +1423,8 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
    <label>삭제 색<input id="oC4" type="color" value="${o.stDel}"></label></div>
   <h4>적출년도별 색 (기존 손상)</h4><p class="help">도면 물량표에서 읽은 연도입니다. 비워 두면 기본 색(검정)을 씁니다.</p>
   <div class="opt" id="yrCols">${ys.length?ys.map(y=>`<label>${y}년 적출<input type="color" data-yr="${y}" value="${o.yearColors[y]||o.stOld}"></label>`).join(""):`<span class="help">아직 읽은 연도가 없습니다. 도면 PDF를 열면 나타납니다.</span>`}</div>
-  <h4>손상 목록 · 단위 · 해치</h4><p class="help">길게 누르면 나오는 메뉴는 <b>단위(m · ㎡ · EA)</b>별로 묶여 나옵니다(키보드 1~9). <b>그리기</b>는 도면에 그리는 방식(선·면·점), <b>단위</b>는 물량 단위입니다. 손상마다 수량 입력 때 단위를 바꿀 수도 있습니다. <b>타원</b>을 켜면 대각선으로 끌었을 때 타원으로 그려집니다.</p>
-  <div class="tw"><table class="lt"><thead><tr><th></th><th>물량표 명칭</th><th>도면 표기</th><th>그리기</th><th>단위</th><th>해치·선 모양</th><th>타원</th><th>폭 빠른선택(mm)</th><th></th></tr></thead><tbody id="libT"></tbody></table></div>
+  <h4>손상 목록 · 단위 · 해치</h4><p class="help">길게 누르면 나오는 메뉴는 <b>단위(m · ㎡ · EA)</b>별로 묶여 나옵니다(키보드 1~9). <b>그리기</b>는 도면에 그리는 방식(선·면·점), <b>단위</b>는 물량 단위입니다. 손상마다 수량 입력 때 단위를 바꿀 수도 있습니다. <b>타원</b>을 켜면 대각선으로 끌었을 때 타원으로 그려집니다. <b>T</b>를 켜면 깊이(T=10mm) 칸, <b>Cw</b>를 켜면 면적 손상에 균열폭(cw=0.2㎜) 칸이 생깁니다.</p>
+  <div class="tw"><table class="lt"><thead><tr><th></th><th>물량표 명칭</th><th>도면 표기</th><th>그리기</th><th>단위</th><th>해치·선 모양</th><th>타원</th><th>T</th><th>Cw</th><th>폭 빠른선택(mm)</th><th></th></tr></thead><tbody id="libT"></tbody></table></div>
   <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="libAdd" style="border:1px solid var(--line)">+ 손상 추가</button><button class="btn" id="libReset" style="border:1px solid var(--line)">기본값으로</button></div>
   <h4>표기</h4><div class="opt">
    <label>${S.pdf&&!S.isSample?"이 망도 라벨 크기 (pt)":"라벨 크기 기본값 (pt)"}<input id="oFs" type="number" step="0.5" min="2" max="20" value="${S.pdf&&!S.isSample?FSb():o.fs}"></label>
@@ -1447,11 +1457,13 @@ function renderLibT(){$("#libT").innerHTML=S.lib.map((t,i)=>{const pats=PATS_BY_
   <td><select data-k="unit">${UNITS.map(u=>`<option value="${u}" ${(t.unit||UNIT[t.geom])===u?"selected":""}>${u}</option>`).join("")}</select></td>
   <td><select data-k="hatch">${Object.entries(pats).map(([k,v])=>`<option value="${k}" ${t.hatch===k?"selected":""}>${v}</option>`).join("")}</select></td>
   <td style="text-align:center">${t.geom==="area"?`<input type="checkbox" data-k="shape" ${t.shape==="ellipse"?"checked":""} style="width:auto;min-height:0">`:""}</td>
+  <td style="text-align:center"><input type="checkbox" data-k="depth" ${t.depth?"checked":""} style="width:auto;min-height:0"></td>
+  <td style="text-align:center">${t.geom!=="line"?`<input type="checkbox" data-k="cw" ${t.cw?"checked":""} style="width:auto;min-height:0">`:""}</td>
   <td><input data-k="widths" value="${esc(t.widths||"")}" ${(t.unit||UNIT[t.geom])!=="m"?"disabled":""} placeholder="0.2,0.3"></td>
   <td style="white-space:nowrap"><button class="mini" data-a="up">↑</button> <button class="mini" data-a="dn">↓</button> <button class="mini" data-a="rm">✕</button></td></tr>`}).join("");
   $("#libT").onchange=e=>{const tr=e.target.closest("tr");const t=S.lib[+tr.dataset.i];const k=e.target.dataset.k;
     if(k==="geom"&&Object.values(S.doc.pages).some(p=>p.items.some(it=>it.type===t.id))){toast("이미 도면에 쓰인 손상은 그리는 방식을 바꿀 수 없습니다");return renderLibT()}
-    if(k==="shape")t.shape=e.target.checked?"ellipse":"";else t[k]=e.target.value;
+    if(k==="shape")t.shape=e.target.checked?"ellipse":"";else if(k==="depth"||k==="cw")t[k]=e.target.checked;else t[k]=e.target.value;
     if(k==="geom"){const pats=PATS_BY_GEOM[t.geom];if(!pats[t.hatch])t.hatch=Object.keys(pats)[t.geom==="area"?2:0];if(!t.unit)t.unit=UNIT[t.geom]}
     saveLib()};
   $("#libT").onclick=e=>{const a=e.target.dataset.a;if(!a)return;const i=+e.target.closest("tr").dataset.i;
@@ -1500,7 +1512,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="2.2";
+const APP_VERSION="2.3";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
