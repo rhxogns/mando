@@ -513,9 +513,9 @@ function findLabels(draw){const out=[];
   return out}
 function labelDetails(L,draw){const t=L.t,h=t.h,x0=Math.min(t.x,L.nameTok.x)-h*.5,x1=L.nameTok.x+h*14;
   const below=draw.filter(o=>o.y>t.y+h*.3&&o.y<t.y+h*3.6&&o.x>=x0&&o.x<=x1).sort((a,b)=>a.y-b.y);
-  let q="",yr="";for(const o of below){const s=o.s.trim();if(!yr){const m=s.match(/\[?\s*['’`]?(\d{2})\s*[,.]?\s*([상하])?/);if(/[\[\]'’]/.test(s)&&m){yr=String(2000+ +m[1]);continue}}
-    if(!q&&/(\d|L=)/.test(s)&&/[\/xX×]|L\s*=|EA/i.test(s))q=s}
-  return{q,yr}}
+  let q="",yr="",by=t.y;for(const o of below){const s=o.s.trim();if(!yr){const m=s.match(/\[?\s*['’`]?(\d{2})\s*[,.]?\s*([상하])?/);if(/[\[\]'’]/.test(s)&&m){yr=String(2000+ +m[1]);by=Math.max(by,o.y);continue}}
+    if(!q&&/(\d|L=)/.test(s)&&/[\/xX×]|L\s*=|EA/i.test(s)){q=s;by=Math.max(by,o.y)}}
+  return{q,yr,by}}
 function rowFromLabel(L,det){const row={no:L.no,yr:det.yr,name:L.name.replace(/\s+/g," ").trim(),w:"",L:"",d:"",q:"",u:"",n:"1",ry:"",m:"",rq:"",note:"",fromLabel:true};
   let q=det.q.replace(/\s+/g," ").trim();const ea=q.match(/\(?\s*(\d+)\s*EA\s*\)?/i);
   if(ea){row.n=ea[1];q=q.replace(ea[0],"").trim()}
@@ -556,7 +556,7 @@ function parseExisting(items){
     if(!inTable&&!det.q&&!det.yr)continue; /* 축 번호·도면 제목 숫자 등은 제외 */
     maxNo=Math.max(maxNo,L.no);
     if(!inTable){if(tableRows)continue;if(!rows.find(r=>r.no===L.no))rows.push(rowFromLabel(L,det))}
-    if(!labels[L.no])labels[L.no]={x:L.t.x,y:L.t.y,h:L.t.h,nx:L.nameTok.x}}
+    if(!labels[L.no])labels[L.no]={x:L.t.x,y:L.t.y,h:L.t.h,nx:L.nameTok.x,by:det.by||L.t.y}}
   if(rows.length&&rows[0].fromLabel)rows.sort((a,b)=>a.no-b.no);
   for(const r of rows)maxNo=Math.max(maxNo,r.no);
   return{rows,labels,maxNo,title:titleOf(items),noTable:!(rows.length&&!rows[0].fromLabel)}}
@@ -710,11 +710,15 @@ function itemSVG(it){
   return g+"</g>"}
 function incItemOf(n,no){const p=S.doc.pages[n];return p?p.items.find(i=>i.kind==="damage"&&i.prog===no):null}
 function exTag(n,row){const j=exJ(n,row);if(j==="keep"||j==="prog")return"";if(j==="prog"){const q=page(n).exq[row.no];const inc=incItemOf(n,row.no);return "진행 "+rowQtyText(row,q)+(inc?` → ${inc.no}`:"")}return jName(j)}
+/* 기존 손상 사진번호: 기존 라벨(번호·손상명·수량·표기) 바로 아래, 끌어서 옮길 수 있음 */
+function exPhotoBox(n,row){const p=S.doc.pages[n];const ph=p&&p.exp&&p.exp[row.no];if(!ph)return null;const lb=S.ex[n]&&S.ex[n].labels[row.no];if(!lb)return null;
+  const fs=FSb()*.9,t=phText(ph),off=(p.expo&&p.expo[row.no])||[0,0];const x=(lb.nx||lb.x)+off[0],y=(lb.by||lb.y)+fs*1.25+off[1];
+  return{x,y,t,size:fs,box:{x:x-.5,y:y-fs*.95,w:txtW(t,fs)+1,h:fs*1.25}}}
 function exSVG(n){if(!S.opt.showEx)return"";let s="";const fs=FSb();
   for(const row of exRows(n)){const R=exRing(n,row);if(!R)continue;const j=exJ(n,row),ch=exChanged(n,row),c=exColor(j,row.yr),sel=S.selEx===row.no;
     s+=`<circle cx="${R.cx.toFixed(2)}" cy="${R.cy.toFixed(2)}" r="${R.r.toFixed(2)}" fill="${sel?"rgba(42,111,219,.12)":"none"}" stroke="${sel?"#2a6fdb":c}" stroke-width="${ch||sel?.9:.35}" ${ch?"":'stroke-dasharray="1 .8"'}/>`;
     if(j==="del"&&ch)s+=`<path d="M${R.cx-R.r} ${R.cy-R.r}L${R.cx+R.r} ${R.cy+R.r}" stroke="${c}" stroke-width=".7"/>`;
-    const ph=S.doc.pages[n]&&S.doc.pages[n].exp&&S.doc.pages[n].exp[row.no];if(ph)s+=`<text x="${(R.cx-R.r).toFixed(2)}" y="${(R.cy+R.r+fs*2.1).toFixed(2)}" font-size="${(fs*.9).toFixed(2)}" font-weight="700" fill="${S.opt.stNew}" stroke="#fff" stroke-width="${fs*.22}" paint-order="stroke">${esc(phText(ph))}</text>`;
+    const PB=exPhotoBox(n,row);if(PB)s+=`<text x="${PB.x.toFixed(2)}" y="${PB.y.toFixed(2)}" font-size="${PB.size.toFixed(2)}" font-weight="700" fill="${S.opt.stNew}" stroke="#fff" stroke-width="${(PB.size*.25).toFixed(2)}" paint-order="stroke">${esc(PB.t)}</text>${sel?`<rect x="${PB.box.x.toFixed(2)}" y="${PB.box.y.toFixed(2)}" width="${PB.box.w.toFixed(2)}" height="${PB.box.h.toFixed(2)}" fill="none" stroke="#2a6fdb" stroke-width=".4" stroke-dasharray="1.2 .8"/>`:""}`;
     const tag=ch?exTag(n,row):"";if(tag)s+=`<text x="${(R.cx-R.r).toFixed(2)}" y="${(R.cy-R.r-1).toFixed(2)}" font-size="${fs*.9}" font-weight="700" fill="${c}" stroke="#fff" stroke-width="${fs*.22}" paint-order="stroke">${esc(tag)}</text>`}
   return s}
 function redraw(){const pg=page();let s=exSVG(S.n);for(const it of pg.items)s+=itemSVG(it);s+=`<g id="live"></g>`;ov.innerHTML=s;
@@ -751,8 +755,8 @@ let lblDirty=false;function commitLabel(){if(!S.pdf||!lblDirty)return;lblDirty=f
 const pageLabel=n=>(S.doc.pages[n]&&S.doc.pages[n].label)||(S.ex[n]&&S.ex[n].title)||"";
 
 /* ---------- undo (per page: items + existing judgments) ---------- */
-const pstate=()=>JSON.stringify({items:page().items,exj:page().exj,exq:page().exq,exp:page().exp});
-function restore(s){const o=JSON.parse(s);const p=page();p.items=o.items;p.exj=o.exj||{};p.exq=o.exq||{};p.exp=o.exp||{}}
+const pstate=()=>JSON.stringify({items:page().items,exj:page().exj,exq:page().exq,exp:page().exp,expo:page().expo||{}});
+function restore(s){const o=JSON.parse(s);const p=page();p.items=o.items;p.exj=o.exj||{};p.exq=o.exq||{};p.exp=o.exp||{};p.expo=o.expo||{}}
 function snap(){const k=S.n;(S.undo[k]=S.undo[k]||[]).push(pstate());if(S.undo[k].length>80)S.undo[k].shift();S.redo[k]=[]}
 function undo(){const k=S.n,u=S.undo[k];if(!u||!u.length)return toast("되돌릴 작업이 없습니다");(S.redo[k]=S.redo[k]||[]).push(pstate());restore(u.pop());S.sel=null;S.selEx=null;redraw();autosave()}
 function redo(){const k=S.n,r=S.redo[k];if(!r||!r.length)return;S.undo[k].push(pstate());restore(r.pop());redraw();autosave()}
@@ -798,6 +802,7 @@ function startDraw(e){const p=toPage(e.clientX,e.clientY);const tool=curTool();
     draw=null;return}
   if(tool==="select"){const sel=page().items.find(i=>i.id===S.sel);
     if(sel&&sel.kind==="damage"&&inBox(p,labelBox(sel))){snap();draw.drag={it:sel,off:[sel.lp[0]-p[0],sel.lp[1]-p[1]]};return}
+    for(const row of exRows(S.n)){const PB=exPhotoBox(S.n,row);if(PB&&inBox(p,PB.box,1.5)){snap();const pg=page();pg.expo=pg.expo||{};S.sel=null;S.selEx=row.no;draw.dragPh={no:row.no,off0:(pg.expo[row.no]||[0,0]).slice(),p0:p};redraw();return}}
     const hit=hitTest(p);S.sel=null;S.selEx=null;
     if(hit&&hit.ex){S.selEx=hit.ex.no}
     else if(hit){S.sel=hit.id;if(hit.kind==="damage"&&inBox(p,labelBox(hit))){snap();draw.drag={it:hit,off:[hit.lp[0]-p[0],hit.lp[1]-p[1]]}}}
@@ -805,7 +810,7 @@ function startDraw(e){const p=toPage(e.clientX,e.clientY);const tool=curTool();
   if(tool==="erase"){draw.erased=false;eraseAt(p)}}
 function moveDraw(e){const p=toPage(e.clientX,e.clientY);if(!draw)return;
   if(!draw.moved&&Math.hypot(e.clientX-draw.sx,e.clientY-draw.sy)>7){draw.moved=true;clearTimeout(lpT)}
-  draw.pts.push(p);const t=draw.tool;if(draw.rsz){const R=draw.rsz;R.it.ls=r2(Math.max(.3,Math.min(4,R.ls0*Math.max(.05,(p[0]-R.x0))/R.w0)));redraw();return}
+  draw.pts.push(p);const t=draw.tool;if(draw.dragPh){const D=draw.dragPh;page().expo[D.no]=[r2(D.off0[0]+p[0]-D.p0[0]),r2(D.off0[1]+p[1]-D.p0[1])];redraw();return}if(draw.rsz){const R=draw.rsz;R.it.ls=r2(Math.max(.3,Math.min(4,R.ls0*Math.max(.05,(p[0]-R.x0))/R.w0)));redraw();return}
   if(t==="pen")liveSet(`<path d="${pathD(draw.pts)}" fill="none" stroke="${S.opt.inkColor}" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/>`);
   else if(t==="damage"){const ty=libById(S.armed),c=S.opt.stNew;
     if(ty.geom==="area"&&!isClosed(draw.pts)){const b=bbox([draw.pts[0],p]);liveSet(`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${c}" fill-opacity=".12" stroke="${c}" stroke-width=".6" stroke-dasharray="2 1"/><path d="${pathD(draw.pts)}" fill="none" stroke="${c}" stroke-width=".35" opacity=".5"/>`)}
@@ -816,7 +821,7 @@ function moveDraw(e){const p=toPage(e.clientX,e.clientY);if(!draw)return;
   else if(t==="select"&&draw.drag){draw.drag.it.lp=round([[p[0]+draw.drag.off[0],p[1]+draw.drag.off[1]]])[0];redraw()}}
 function isClosed(pts){if(pts.length<8)return false;const L=polyLen(pts);return L>20/S.z&&dist(pts[0],pts[pts.length-1])<Math.max(10/S.z,L*.12)}
 function cancelDraw(){clearTimeout(lpT);draw=null;liveSet("")}
-function endDraw(){clearTimeout(lpT);const d=draw;draw=null;if(!d)return;if(d.rsz){redraw();return}const t=d.tool;liveSet("");const tol=0.35/S.z;
+function endDraw(){clearTimeout(lpT);const d=draw;draw=null;if(!d)return;if(d.rsz){redraw();return}if(d.dragPh){redraw();autosave();return}const t=d.tool;liveSet("");const tol=0.35/S.z;
   if(t==="pen"){if(d.pts.length<2&&!d.moved)return;snap();page().items.push({id:uid(),kind:"ink",pts:round(rdp(d.pts,tol)),color:S.opt.inkColor,w:0.7});redraw();autosave()}
   else if(t==="damage"){const ty=libById(S.armed);let pts;
     if(ty.geom==="point")pts=[d.pts[0]];
@@ -1307,7 +1312,7 @@ async function exportPdf(onlyMarked){closeModal();const marked=touchedPages();
       const text=(s,x,y,size,c)=>{const A=cv([x,y]);P.drawText(s,{x:A[0],y:A[1],size,font,color:c,rotate:degrees(rot)})};
       const box=(x,y,w,h)=>P.drawSvgPath(svgPath([[x,y],[x+w,y],[x+w,y+h],[x,y+h]])+" Z",{x:0,y:0,color:PDFLib.rgb(1,1,1),opacity:.8});
       for(const row of exRows(n)){const R=exRing(n,row);if(!R)continue;const eph=S.doc.pages[n].exp&&S.doc.pages[n].exp[row.no];
-        if(eph){const t2=phText(eph),tw=font.widthOfTextAtSize(t2,fs*.9);box(R.cx-R.r-.5,R.cy+R.r+fs*1.25,tw+1,fs*1.05);text(t2,R.cx-R.r,R.cy+R.r+fs*2.1,fs*.9,hexRgb(S.opt.stNew))}
+        const PB=eph?exPhotoBox(n,row):null;if(PB){const tw=font.widthOfTextAtSize(PB.t,PB.size);box(PB.x-.5,PB.y-PB.size*.95,tw+1,PB.size*1.2);text(PB.t,PB.x,PB.y,PB.size,hexRgb(S.opt.stNew))}
         if(!exChanged(n,row))continue;const j=exJ(n,row),c=hexRgb(exColor(j,row.yr));
         const A=cv([R.cx,R.cy]);P.drawCircle({x:A[0],y:A[1],size:R.r,borderColor:c,borderWidth:.9});
         if(j==="del")line([R.cx-R.r,R.cy-R.r],[R.cx+R.r,R.cy+R.r],c,.7);
@@ -1495,7 +1500,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="2.1";
+const APP_VERSION="2.2";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
