@@ -403,6 +403,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc 
 /* ---------- defaults ---------- */
 const AREA_PATS={none:"없음(윤곽만)",solid:"채움",netcrack:"망상균열 (빗금 벽돌)",cross:"교차 X (재료분리)",grid:"격자 (박리·파손)",circles:"동그라미 (백태)",hex:"벌집 (누수·체수)",dotsdense:"촘촘한 점 (변색·녹물)",xmarks:"× 표시 (철판보강부)",diag:"사선 / (강재부식)",dashh:"가로 점선 (소성변형)",scour:"v 표시 (기초 세굴)",vert:"세로선 (보수흔적)",speckle:"얼룩 (이물질 퇴적)",rdiag:"사선 \\",horiz:"가로선",diagwide:"넓은 사선 /",rdiagwide:"넓은 사선 \\",dots:"점","netcrack+circles":"망상균열 + 백태","hex+circles":"누수 + 백태","grid+dots":"격자 + 점"};
 const LINE_STYLES={plain:"실선 (균열)",zigzag:"지그재그 (시공이음·층분리)",wave:"물결 (좌굴·변형)",rebar:"×══× (철근노출)",rebarcor:"×▨▨× (철근부식)",dashed:"점선"};
+AREA_PATS.rebarsym="×══× 사각형 (철근노출)";AREA_PATS.rebarcorsym="×▨▨× 사각형 (철근부식)";
 const POINT_SYMS={x:"⊗ 표시",star:"별 (펀칭·공동)",dot:"● 점"};
 const PATS_BY_GEOM={area:AREA_PATS,line:LINE_STYLES,point:POINT_SYMS};
 const GEOMS={line:"선",area:"면",point:"점"};
@@ -419,8 +420,8 @@ const DEF_LIB=[
  L_("joint","시공이음분리","시공이음분리","line","m","zigzag"),
  L_("dlam","층분리","층분리","line","m","zigzag"),
  L_("dfm","좌굴, 변형","변형","line","m","wave"),
- L_("rebar","철근노출","철근노출","line","㎡","rebar"),
- L_("rcor","철근부식","철근부식","line","㎡","rebarcor"),
+ L_("rebar","철근노출","철근노출","area","㎡","rebarsym","","rect"),
+ L_("rcor","철근부식","철근부식","area","㎡","rebarcorsym","","rect"),
  L_("net","망상균열","망상균열","area","㎡","netcrack"),
  L_("netef","망상균열,백태","망상균열,백태","area","㎡","netcrack+circles"),
  L_("seg","재료분리","재료분리","area","㎡","cross"),
@@ -461,6 +462,7 @@ const S={pdf:null,bytes:null,name:"",size:0,key:"",isSample:false,n:1,count:1,W:
 function ld(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 S.lib=ld("mdn.lib3",null)||JSON.parse(JSON.stringify(DEF_LIB));
+for(const t of S.lib){if((t.id==="rebar"||t.id==="rcor")&&t.geom==="line"){const d=DEF_LIB.find(x=>x.id===t.id);Object.assign(t,{geom:"area",hatch:d.hatch,shape:"rect"})}}
 S.opt=Object.assign({},DEF_OPT,ld("mdn.opt2",{}));S.opt.yearColors=S.opt.yearColors||{};
 S.recent=ld("mdn.recent2",[]);
 const saveOpt=()=>sv("mdn.opt2",S.opt);
@@ -628,6 +630,14 @@ function itemPrims(it,k){k=k||1;const t=libById(it.type),P={paths:[],segs:[],dot
       X(pts[0],pts[1]);X(pts[pts.length-1],pts[pts.length-2]);
       if(sty==="rebarcor")walk(pts,.6*k,(x,y,nx,ny)=>{P.segs.push([x-nx*o,y-ny*o,x+nx*o+(ny)*.35*k,y+ny*o-(nx)*.35*k,w*.45])})}
     else P.paths.push({pts,w,dash:sty==="dashed"?[2*k,1.2*k]:null})}
+  else if(t.geom==="area"&&(sty==="rebarsym"||sty==="rebarcorsym")){const B=bbox(it.pts),hor=B.w>=B.h,cx=B.x+B.w/2,cy=B.y+B.h/2,L=(hor?B.w:B.h),T=(hor?B.h:B.w);
+    const o=Math.min(T*.18,.7*k),d=Math.max(.6*k,Math.min(T*.42,1.8*k)),w=S.opt.lw*k*.8,m=Math.min(d*1.1,L*.2);
+    const pt=(u,v)=>hor?[B.x+u,cy+v]:[cx+v,B.y+u];
+    P.paths.push({pts:it.pts,closed:true,w:.01,fill:true,fillOp:0});
+    const ln=(u1,v1,u2,v2,ww)=>{const a=pt(u1,v1),b=pt(u2,v2);P.segs.push([a[0],a[1],b[0],b[1],ww])};
+    ln(m,-o,L-m,-o,w);ln(m,o,L-m,o,w);
+    for(const u of[m,L-m]){ln(u-d*.7,-d*.7,u+d*.7,d*.7,w);ln(u-d*.7,d*.7,u+d*.7,-d*.7,w)}
+    if(sty==="rebarcorsym")for(let u=m+.5*k;u<L-m-.3*k;u+=.6*k)ln(u,o,u+.4*k,-o,w*.7)}
   else if(t.geom==="area"){const h=hatchGeom(it.pts,sty,S.opt.hatchSp*k);
     P.paths.push({pts:it.pts,closed:true,w:.55*k,fill:true,fillOp:h.fill?.45:.06,dash:sty==="none"?[2*k,1.2*k]:null});
     for(const q of h.segs)P.segs.push([q[0],q[1],q[2],q[3],.3*k]);for(const d of h.dots)P.dots.push([d[0],d[1],(d[2]||.35)*k]);for(const r of h.rings)P.rings.push([r[0],r[1],r[2],.28*k])}
@@ -662,8 +672,9 @@ function anchorOf(it){const g=libById(it.type).geom;if(g==="line")return it.pts[
   if(g==="area"){const b=bbox(it.pts);return[b.x2,b.y]}return it.pts[0]}
 function labelLines(it){const t=typeOf(it);const top=[it.no?String(it.no):"",S.opt.showName?(t.short||t.name):""].filter(Boolean).join(" ");return top?[top,qtyText(it)]:[qtyText(it)]}
 /* label = ⓝ(적출년도 색 동그라미) + 손상명 / 수량 / ['26,상] / #사진 */
+const FSb=()=>(S.doc&&S.doc.fs)||S.opt.fs;
 function tagText(it){const tg=S.doc&&S.doc.tag;if(!tg||it.st!=="new")return"";return `['${String(it.yr||S.opt.curYear).slice(-2)},${tg}]`}
-function labelLayout(it,measure){const fs=S.opt.fs,t=typeOf(it),W=measure||txtW;const name=(S.opt.showName?(t.short||t.name):"")+(it.prog?`(${it.prog}번 진행분)`:""),q=qtyText(it),no=it.no?String(it.no):"";
+function labelLayout(it,measure){const fs=FSb()*(it.ls||1),t=typeOf(it),W=measure||txtW;const name=(S.opt.showName?(t.short||t.name):"")+(it.prog?`(${it.prog}번 진행분)`:""),q=qtyText(it),no=it.no?String(it.no):"";
   const x=it.lp[0],yq=it.lp[1],y1=yq-fs*1.15,r=fs*.62,hasTop=!!name;
   const tx=no?x+2*r+fs*.25:x;const lines=[];
   if(hasTop)lines.push({t:name,x:tx,y:y1,size:fs*.85,bold:false});
@@ -688,17 +699,18 @@ function pathD(p){return p.map((q,i)=>(i?"L":"M")+q[0]+" "+q[1]).join("")}
 function itemSVG(it){
   if(it.kind==="ink")return `<path d="${pathD(it.pts)}" fill="none" stroke="${it.color}" stroke-width="${it.w}" stroke-linecap="round" stroke-linejoin="round"/>`;
   if(it.kind!=="damage")return "";
-  const c=itemColor(it),fs=S.opt.fs;let g=`<g>`+primsSVG(itemPrims(it),c);
+  const c=itemColor(it),fs=FSb()*(it.ls||1);let g=`<g>`+primsSVG(itemPrims(it),c);
   const an=anchorOf(it),lb=labelBox(it);
   if(dist(an,[lb.x,lb.y+lb.h])>fs*1.6&&dist(an,[lb.x,lb.y])>fs*1.6)g+=`<path d="M${an[0]} ${an[1]}L${lb.x} ${lb.y+lb.h-fs*.2}" stroke="${c}" stroke-width=".3"/>`;
   const LO=labelLayout(it);
   if(LO.circ){const C=LO.circ;g+=`<circle cx="${C.cx.toFixed(2)}" cy="${C.cy.toFixed(2)}" r="${C.r.toFixed(2)}" fill="#fff" stroke="${c}" stroke-width="${(fs*.09).toFixed(2)}"/><text x="${C.cx.toFixed(2)}" y="${(C.cy+C.size*.36).toFixed(2)}" font-size="${C.size.toFixed(2)}" text-anchor="middle" font-weight="600" fill="${c}">${esc(C.no)}</text>`}
   for(const l of LO.lines)g+=`<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="${l.size.toFixed(2)}" ${l.bold?'font-weight="600"':""} fill="${c}" stroke="#fff" stroke-width="${(fs*.22).toFixed(2)}" paint-order="stroke" stroke-linejoin="round">${esc(l.t)}</text>`;
-  if(S.sel===it.id){const b=bbox(it.pts),p=2;g+=`<rect x="${lb.x-1}" y="${lb.y-1}" width="${lb.w+2}" height="${lb.h+2}" fill="none" stroke="#2a6fdb" stroke-width=".5" stroke-dasharray="1.5 1"/><rect x="${b.x-p}" y="${b.y-p}" width="${b.w+p*2}" height="${b.h+p*2}" fill="none" stroke="#2a6fdb" stroke-width=".6" stroke-dasharray="2 1.2"/>`}
+  if(S.rs&&S.rs.id===it.id){const hs=7/S.z;g+=`<rect x="${(lb.x-1).toFixed(2)}" y="${(lb.y-1).toFixed(2)}" width="${(lb.w+2).toFixed(2)}" height="${(lb.h+2).toFixed(2)}" fill="rgba(42,111,219,.06)" stroke="#2a6fdb" stroke-width="${(1.2/S.z).toFixed(2)}"/><rect x="${(lb.x+lb.w+1-hs/2).toFixed(2)}" y="${(lb.y+lb.h+1-hs/2).toFixed(2)}" width="${hs.toFixed(2)}" height="${hs.toFixed(2)}" fill="#2a6fdb"/>`}
+  else if(S.sel===it.id){const b=bbox(it.pts),p=2;g+=`<rect x="${lb.x-1}" y="${lb.y-1}" width="${lb.w+2}" height="${lb.h+2}" fill="none" stroke="#2a6fdb" stroke-width=".5" stroke-dasharray="1.5 1"/><rect x="${b.x-p}" y="${b.y-p}" width="${b.w+p*2}" height="${b.h+p*2}" fill="none" stroke="#2a6fdb" stroke-width=".6" stroke-dasharray="2 1.2"/>`}
   return g+"</g>"}
 function incItemOf(n,no){const p=S.doc.pages[n];return p?p.items.find(i=>i.kind==="damage"&&i.prog===no):null}
 function exTag(n,row){const j=exJ(n,row);if(j==="keep"||j==="prog")return"";if(j==="prog"){const q=page(n).exq[row.no];const inc=incItemOf(n,row.no);return "진행 "+rowQtyText(row,q)+(inc?` → ${inc.no}`:"")}return jName(j)}
-function exSVG(n){if(!S.opt.showEx)return"";let s="";const fs=S.opt.fs;
+function exSVG(n){if(!S.opt.showEx)return"";let s="";const fs=FSb();
   for(const row of exRows(n)){const R=exRing(n,row);if(!R)continue;const j=exJ(n,row),ch=exChanged(n,row),c=exColor(j,row.yr),sel=S.selEx===row.no;
     s+=`<circle cx="${R.cx.toFixed(2)}" cy="${R.cy.toFixed(2)}" r="${R.r.toFixed(2)}" fill="${sel?"rgba(42,111,219,.12)":"none"}" stroke="${sel?"#2a6fdb":c}" stroke-width="${ch||sel?.9:.35}" ${ch?"":'stroke-dasharray="1 .8"'}/>`;
     if(j==="del"&&ch)s+=`<path d="M${R.cx-R.r} ${R.cy-R.r}L${R.cx+R.r} ${R.cy+R.r}" stroke="${c}" stroke-width=".7"/>`;
@@ -781,6 +793,9 @@ function curTool(){return S.armed?"damage":S.tool}
 function startDraw(e){const p=toPage(e.clientX,e.clientY);const tool=curTool();
   draw={pid:e.pointerId,isPen:e.pointerType==="pen",tool,pts:[p],sx:e.clientX,sy:e.clientY,moved:false,drag:null};
   if(tool==="pen"||tool==="damage"){clearTimeout(lpT);lpT=setTimeout(()=>{if(draw&&!draw.moved){const d=draw;draw=null;liveSet("");openMenu(d.sx,d.sy,d.pts[0])}},LP_MS)}
+  if(S.rs){const it=page().items.find(i=>i.id===S.rs.id);if(it){const lb=labelBox(it),hx=lb.x+lb.w+1,hy=lb.y+lb.h+1;
+      if(dist(p,[hx,hy])<14/S.z||inBox(p,lb)){draw.rsz={it,x0:lb.x,w0:lb.w+1,ls0:it.ls||1};return}}
+    draw=null;return}
   if(tool==="select"){const sel=page().items.find(i=>i.id===S.sel);
     if(sel&&sel.kind==="damage"&&inBox(p,labelBox(sel))){snap();draw.drag={it:sel,off:[sel.lp[0]-p[0],sel.lp[1]-p[1]]};return}
     const hit=hitTest(p);S.sel=null;S.selEx=null;
@@ -790,23 +805,24 @@ function startDraw(e){const p=toPage(e.clientX,e.clientY);const tool=curTool();
   if(tool==="erase"){draw.erased=false;eraseAt(p)}}
 function moveDraw(e){const p=toPage(e.clientX,e.clientY);if(!draw)return;
   if(!draw.moved&&Math.hypot(e.clientX-draw.sx,e.clientY-draw.sy)>7){draw.moved=true;clearTimeout(lpT)}
-  draw.pts.push(p);const t=draw.tool;
+  draw.pts.push(p);const t=draw.tool;if(draw.rsz){const R=draw.rsz;R.it.ls=r2(Math.max(.3,Math.min(4,R.ls0*Math.max(.05,(p[0]-R.x0))/R.w0)));redraw();return}
   if(t==="pen")liveSet(`<path d="${pathD(draw.pts)}" fill="none" stroke="${S.opt.inkColor}" stroke-width="0.7" stroke-linecap="round" stroke-linejoin="round"/>`);
   else if(t==="damage"){const ty=libById(S.armed),c=S.opt.stNew;
     if(ty.geom==="area"&&!isClosed(draw.pts)){const b=bbox([draw.pts[0],p]);liveSet(`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${c}" fill-opacity=".12" stroke="${c}" stroke-width=".6" stroke-dasharray="2 1"/><path d="${pathD(draw.pts)}" fill="none" stroke="${c}" stroke-width=".35" opacity=".5"/>`)}
     else liveSet(`<path d="${pathD(draw.pts)}" fill="none" stroke="${c}" stroke-width="${ty.geom==="line"?.8:.5}" stroke-linecap="round"/>`)}
   else if(t==="scale")liveSet(`<path d="M${draw.pts[0][0]} ${draw.pts[0][1]}L${p[0]} ${p[1]}" stroke="#2a6fdb" stroke-width=".8"/><circle cx="${draw.pts[0][0]}" cy="${draw.pts[0][1]}" r="1.2" fill="#2a6fdb"/><circle cx="${p[0]}" cy="${p[1]}" r="1.2" fill="#2a6fdb"/>`);
   else if(t==="erase")eraseAt(p);
+  else if(draw.rsz){const R=draw.rsz;const f=Math.max(.3,Math.min(4,R.ls0*Math.max(.05,(p[0]-R.x0))/R.w0));R.it.ls=r2(f);redraw();return}
   else if(t==="select"&&draw.drag){draw.drag.it.lp=round([[p[0]+draw.drag.off[0],p[1]+draw.drag.off[1]]])[0];redraw()}}
 function isClosed(pts){if(pts.length<8)return false;const L=polyLen(pts);return L>20/S.z&&dist(pts[0],pts[pts.length-1])<Math.max(10/S.z,L*.12)}
 function cancelDraw(){clearTimeout(lpT);draw=null;liveSet("")}
-function endDraw(){clearTimeout(lpT);const d=draw;draw=null;if(!d)return;const t=d.tool;liveSet("");const tol=0.35/S.z;
+function endDraw(){clearTimeout(lpT);const d=draw;draw=null;if(!d)return;if(d.rsz){redraw();return}const t=d.tool;liveSet("");const tol=0.35/S.z;
   if(t==="pen"){if(d.pts.length<2&&!d.moved)return;snap();page().items.push({id:uid(),kind:"ink",pts:round(rdp(d.pts,tol)),color:S.opt.inkColor,w:0.7});redraw();autosave()}
   else if(t==="damage"){const ty=libById(S.armed);let pts;
     if(ty.geom==="point")pts=[d.pts[0]];
     else if(ty.geom==="line"){if(!d.moved)return;pts=round(rdp(d.pts,tol))}
     else{if(!d.moved){const s=6;const[x,y]=d.pts[0];pts=[[x-s,y-s],[x+s,y-s],[x+s,y+s],[x-s,y+s]]}
-      else if(isClosed(d.pts)){pts=rdp(d.pts,tol);if(dist(pts[0],pts[pts.length-1])<.01)pts.pop()}
+      else if(isClosed(d.pts)){if(ty.shape==="rect"){const b=bbox(d.pts);pts=[[b.x,b.y],[b.x2,b.y],[b.x2,b.y2],[b.x,b.y2]]}else{pts=rdp(d.pts,tol);if(dist(pts[0],pts[pts.length-1])<.01)pts.pop()}}
       else{const b=bbox([d.pts[0],d.pts[d.pts.length-1]]);if(b.w<1||b.h<1)return;pts=ty.shape==="ellipse"?ellipsePoly(b):[[b.x,b.y],[b.x2,b.y],[b.x2,b.y2],[b.x,b.y2]]}
       if(!d.moved&&ty.shape==="ellipse")pts=ellipsePoly(bbox(pts));
       pts=round(pts)}
@@ -858,11 +874,11 @@ function fitToScale(it,resetLabel){if(!S.opt.toScale||it.kind!=="damage")return 
     else{const kx=W/B.w,ky=H/B.h;it.pts=it.pts.map(([x,y])=>[cx+(x-cx)*kx,cy+(y-cy)*ky])}}
   else if(g==="line"&&u==="m"){const L=+it.L;const RL=realLen(it.pts,sc);if(!(L>0&&RL>0))return false;const k=L/RL,p0=it.pts[0];it.pts=it.pts.map(([x,y])=>[p0[0]+(x-p0[0])*k,p0[1]+(y-p0[1])*k])}
   else return false;
-  it.pts=round(it.pts);const an1=anchorOf(it);if(resetLabel){const fs=S.opt.fs;it.lp=[r2(an1[0]+fs*.5),r2(an1[1]-fs*.4)]}else it.lp=[r2(it.lp[0]+an1[0]-an0[0]),r2(it.lp[1]+an1[1]-an0[1])];return true}
+  it.pts=round(it.pts);const an1=anchorOf(it);if(resetLabel){const fs=FSb();it.lp=[r2(an1[0]+fs*.5),r2(an1[1]-fs*.4)]}else it.lp=[r2(it.lp[0]+an1[0]-an0[0]),r2(it.lp[1]+an1[1]-an0[1])];return true}
 
 /* ---------- quantity sheet ---------- */
 const qty=$("#qty");let Q=null;
-function newDamage(t,pts){const pg=page();const fs=S.opt.fs;
+function newDamage(t,pts){const pg=page();const fs=FSb();
   const it={id:uid(),kind:"damage",type:t.id,no:nextNo(),by:S.opt.by||"",t:Date.now(),pts,st:"new",yr:String(S.opt.curYear),w:"",L:"",a:"",b:"",n:1,lp:[0,0]};
   const sc=scaleXY(pg);
   const INC=S.armedInc;
@@ -947,20 +963,38 @@ function renderSelbar(){const it=selIt(),row=selRow();
   if(row){const j=exJ(S.n,row);selbar.innerHTML=`<span class="lbl">기존 ${row.no}. ${esc(row.name)} <small style="color:var(--muted)">${esc(row.yr)}</small></span>`+
     JUDGE.map(([k,n])=>`<button class="btn ${j===k?"on":""}" data-j="${k}" style="${j===k?`background:${exColor(k,row.yr)}`:`color:${exColor(k,row.yr)}`}">${n}</button>`).join("")+
     `<button class="btn" data-ph="1" title="사진번호">📷 ${esc(phText(page().exp[row.no])||"사진#")}</button><button class="btn" data-j="reset" title="PDF 비고대로">원래대로</button><button class="btn" data-x="1">✕</button>`;selbar.hidden=false;return}
-  if(it){selbar.innerHTML=(it.kind==="damage"?`<button class="btn" data-a="edit">수량 수정</button><button class="btn" data-a="type" id="sType">손상 변경</button><button class="btn" data-a="stat">상태: ${stName(it.st)}</button>`:"")+
+  if(it&&S.rs&&S.rs.id===it.id){selbar.innerHTML=`<span class="lbl">라벨 크기 ${Math.round((it.ls||1)*100)}%</span><button class="btn" data-r="-">−</button><button class="btn" data-r="+">+</button><button class="btn" data-r="all" style="background:var(--accent);color:#fff">이 크기로 전체 고정</button><button class="btn" data-r="one">이것만 적용</button><button class="btn" data-r="cx">취소</button>`;selbar.hidden=false;return}
+  if(it){selbar.innerHTML=(it.kind==="damage"?`<button class="btn" data-a="no">번호 ${it.no||"-"}</button><button class="btn" data-a="edit">수량 수정</button><button class="btn" data-a="type" id="sType">손상 변경</button><button class="btn" data-a="stat">상태: ${stName(it.st)}</button><button class="btn" data-a="rs">라벨 크기</button>`:"")+
     `<button class="btn" data-a="del" style="color:var(--accent)">삭제</button><button class="btn" data-x="1">✕</button>`;selbar.hidden=false;return}
   selbar.hidden=true}
 selbar.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.x){S.sel=null;S.selEx=null;redraw();return}
+  if(b.dataset.x){if(S.rs){const it=selIt();if(it){it.ls=S.rs.ls0;if(it.ls===1)delete it.ls}S.rs=null}S.sel=null;S.selEx=null;redraw();return}
   if(b.dataset.ph){const row=selRow();if(row)openExPhoto(row);return}
   if(b.dataset.j){const row=selRow();if(!row)return;const p=page();
     if(b.dataset.j==="prog"){openExProg(row);return}
     snap();if(b.dataset.j==="reset"){delete p.exj[row.no];delete p.exq[row.no]}else{p.exj[row.no]=b.dataset.j;if(b.dataset.j!=="prog")delete p.exq[row.no]}redraw();autosave();return}
+  if(b.dataset.r){const it=selIt();if(!it||!S.rs)return;const r=b.dataset.r;
+    if(r==="+"||r==="-"){it.ls=Math.max(.3,Math.min(4,r2((it.ls||1)*(r==="+"?1.12:1/1.12))));redraw();return}
+    if(r==="all"){const f=it.ls||1;S.doc.fs=r2(FSb()*f);for(const k in S.doc.pages)for(const x of S.doc.pages[k].items)delete x.ls;S.rs=null;redraw();autosave();toast(`이 망도 라벨 크기를 ${fmt(S.doc.fs)}pt로 전체 고정했습니다`);return}
+    if(r==="one"){S.rs=null;redraw();autosave();return}
+    if(r==="cx"){it.ls=S.rs.ls0;if(it.ls===1)delete it.ls;S.rs=null;redraw();return}}
   const it=selIt();if(!it)return;const a=b.dataset.a;
+  if(a==="no"){numPad(`손상 번호 · ${typeOf(it).name}`,String(it.no||""),v=>{const n=parseInt(v);if(!(n>0))return toast("번호를 입력하세요");
+    const dup=page().items.some(x=>x!==it&&x.kind==="damage"&&x.no===n)||exRows(S.n).some(r=>r.no===n);snap();it.no=n;redraw();autosave();if(dup)toast(`${n}번이 이 페이지에 이미 있습니다. 확인해 주세요`,3500)});return}
+  if(a==="rs"){snap();S.rs={id:it.id,ls0:it.ls||1};setToolQuiet("select");S.sel=it.id;redraw();toast("파란 네모 모서리를 끌거나 −/+로 크기를 맞추세요",3500);return}
   if(a==="edit")openQty(it,"edit");
   if(a==="type"){const r=b.getBoundingClientRect();openMenu(r.left,r.bottom+6,null,"change")}
   if(a==="stat"){snap();const i=STATUS.findIndex(s=>s[0]===it.st);it.st=STATUS[(i+1)%3][0];if(it.st==="new")it.yr=String(S.opt.curYear);redraw();autosave();if(it.st!=="new")toast("적출년도는 수량 수정에서 바꿀 수 있습니다")}
   if(a==="del"){snap();page().items=page().items.filter(i=>i!==it);S.sel=null;redraw();autosave()}});
+
+/* ---------- 숫자 입력 패드 (번호 수정 등) ---------- */
+function numPad(title,init,onOk){Q=null;let v=init||"",fresh=true;qty.hidden=false;
+  const R=()=>{qty.innerHTML=`<div class="qh"><h4>${esc(title)}</h4></div><div class="fields"><div class="fld on"><small>번호</small><span>${esc(v)}</span></div></div>
+   <div class="pad">${["7","8","9","⌫","4","5","6","C","1","2","3","","","0","취소","확인"].map(k=>`<button data-k="${k}" class="${k==="확인"?"ok":k==="취소"?"cx":""}" ${k===""?"disabled":""}>${k}</button>`).join("")}</div>`};
+  R();qty.onclick=e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;
+    if(k==="취소"){qty.hidden=true;qty.onclick=null;return}
+    if(k==="확인"){qty.hidden=true;qty.onclick=null;onOk(v);return}
+    if(k==="⌫")v=v.slice(0,-1);else if(k==="C")v="";else{if(fresh)v="";if(v.length<3)v+=k}fresh=false;R()}}
 
 /* ---------- scale ---------- */
 function askScale(A,B){Q=null;let v="";qty.hidden=false;const dx=Math.abs(B[0]-A[0]),dy=Math.abs(B[1]-A[1]);const hor=dx>=dy;const len=hor?dx:dy;const p=page();
@@ -1010,7 +1044,7 @@ thList.addEventListener("click",e=>{const b=e.target.closest(".th");if(b)gotoPag
 $("#bThumbs").onclick=()=>setThumbs(thumbsEl.hidden);
 
 /* ---------- tools & keys ---------- */
-function setTool(t){S.tool=t;disarm();if(t!=="select"){S.sel=null;S.selEx=null}document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("on",b.dataset.tool===t));
+function setTool(t){S.tool=t;disarm();S.rs=null;if(t!=="select"){S.sel=null;S.selEx=null}document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("on",b.dataset.tool===t));
   if(t==="scale")toast("도면에서 치수를 아는 구간(예: 경간장)을 따라 선을 그으세요",3200);if(t==="select")toast("손상이나 기존 손상 번호(동그라미)를 누르세요");redraw()}
 document.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 function renderInk(){$("#inkCols").innerHTML=INK_COLORS.map(c=>`<button class="btn ${S.opt.inkColor===c?"on":""}" data-ink="${c}" aria-label="펜 색" style="padding:0 6px"><span class="dot" style="background:${c}"></span></button>`).join("")}
@@ -1203,6 +1237,7 @@ async function loadPdf(buf,name,size,doc,isSample,key,startPage){$("#busy").text
   if(S.pdf){try{S.pdf.destroy()}catch(e){}}
   S.bytes=buf;S.name=name;S.size=size;S.key=key||(name+"|"+size);S.dirty=false;$("#dirty").hidden=true;S.isSample=isSample;S.undo={};S.redo={};S.sel=null;S.selEx=null;S.ex={};S.n=1;disarm();
   S.pdf=await pdfjsLib.getDocument({data:buf.slice(0),isEvalSupported:false}).promise;S.count=S.pdf.numPages;S.doc=doc||{pages:{}};
+  for(const k in S.doc.pages)for(const it of S.doc.pages[k].items||[])if(it.kind==="damage"&&libById(it.type).geom==="area"&&it.pts.length<3){const b=bbox(it.pts),pad=1;it.pts=[[b.x,b.y-pad],[b.x2,b.y-pad],[b.x2,b.y2+pad],[b.x,b.y2+pad]]}
   $("#banner").hidden=!isSample;if(isSample)$("#banner").innerHTML=`<b>예시 도면</b>(연습용)입니다. 왼쪽 위 <b>◂</b>를 눌러 목록에서 구조물을 추가하세요.`;
   thBuiltFor=null;if(!$("#thumbs").hidden)buildThumbs();
   await gotoPage(startPage||1)}
@@ -1245,7 +1280,7 @@ $("#bExport").onclick=()=>{commitLabel();const tp=touchedPages();const nNew=tp.r
 function saveJson(){if(S.isSample){toast("예시 도면은 저장하지 않습니다. 목록에서 구조물을 여세요");return}commitLabel();const ex={};for(const k in S.ex)ex[k]=S.ex[k].rows;
   const d=new Date(),t=`${stamp()}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}`;
   const who=(S.opt.by||"").replace(/[\\/:*?"<>|\s]+/g,"");
-  saveFile(`${base()}_작업_${who?who+"_":""}${t}.json`,JSON.stringify({app:"망도노트",ver:2,savedAt:d.toISOString(),pdf:{name:S.name,size:S.size,pages:S.count},curYear:S.opt.curYear,tag:S.doc.tag||"",lib:S.lib,opt:{fs:S.opt.fs,hatchSp:S.opt.hatchSp,xch:S.opt.xch},
+  saveFile(`${base()}_작업_${who?who+"_":""}${t}.json`,JSON.stringify({app:"망도노트",ver:2,savedAt:d.toISOString(),pdf:{name:S.name,size:S.size,pages:S.count},curYear:S.opt.curYear,tag:S.doc.tag||"",fs:S.doc.fs||"",lib:S.lib,opt:{fs:S.opt.fs,hatchSp:S.opt.hatchSp,xch:S.opt.xch},
     coord:"pdf.js 뷰포트(scale=1, 페이지 회전 적용) 좌표, 단위 pt, 원점 좌상단",pages:S.doc.pages,existing:ex,quantities:pagesKnown().flatMap(csvRowsFor)},null,1)).then(ok=>{if(ok){S.dirty=false;$("#dirty").hidden=true;if(S.cur){S.cur.jsonAt=Date.now()+1000;libSave()}}})}
 $("#bSave").onclick=saveJson;
 $("#bRenum").onclick=async()=>{snap();const ds=page().items.filter(i=>i.kind==="damage");ds.forEach(i=>delete i.dup);
@@ -1253,7 +1288,7 @@ $("#bRenum").onclick=async()=>{snap();const ds=page().items.filter(i=>i.kind==="
   await renumberPage(S.n,"pos");redraw();autosave();toast("이 페이지 신규 번호를 위치순으로 다시 매겼습니다")};
 $("#jsonIn").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const j=JSON.parse(await f.text());
   if(!j.pages)throw 0;if(j.pdf&&j.pdf.name!==S.name)toast(`주의: 작업 파일은 '${j.pdf.name}' 기준입니다`,3500);
-  S.doc={pages:j.pages};if(j.tag!==undefined)S.doc.tag=j.tag;if(j.lib){for(const t of j.lib)if(!S.lib.find(x=>x.id===t.id))S.lib.push(t);sv("mdn.lib3",S.lib)}closeModal();await gotoPage(1);autosave();toast("작업 파일을 불러왔습니다")}catch(err){toast("작업 파일 형식이 아닙니다")}};
+  S.doc={pages:j.pages};if(j.tag!==undefined)S.doc.tag=j.tag;if(j.fs)S.doc.fs=+j.fs;if(j.lib){for(const t of j.lib)if(!S.lib.find(x=>x.id===t.id))S.lib.push(t);sv("mdn.lib3",S.lib)}closeModal();await gotoPage(1);autosave();toast("작업 파일을 불러왔습니다")}catch(err){toast("작업 파일 형식이 아닙니다")}};
 
 function hexRgb(h){const n=parseInt(h.slice(1),16);return PDFLib.rgb((n>>16&255)/255,(n>>8&255)/255,(n&255)/255)}
 async function exportPdf(onlyMarked){closeModal();const marked=touchedPages();
@@ -1264,8 +1299,8 @@ async function exportPdf(onlyMarked){closeModal();const marked=touchedPages();
     if(onlyMarked){out=await PDFDocument.create();const cp=await out.copyPages(src,marked.map(n=>n-1));cp.forEach((p,i)=>{out.addPage(p);map[marked[i]]=i})}
     else marked.forEach(n=>map[n]=n-1);
     out.registerFontkit(fontkit);const font=await out.embedFont(Uint8Array.from(atob(KR_FONT_B64),c=>c.charCodeAt(0)),{subset:false});
-    const pgs=out.getPages();const fs=S.opt.fs;
-    for(const n of marked){await ensureEx(n);const pj=await S.pdf.getPage(n);const vp=pj.getViewport({scale:1});const rot=pj.rotate||0;const P=pgs[map[n]];
+    const pgs=out.getPages();
+    for(const n of marked){await ensureEx(n);const fs=FSb();const pj=await S.pdf.getPage(n);const vp=pj.getViewport({scale:1});const rot=pj.rotate||0;const P=pgs[map[n]];
       const cv=([x,y])=>vp.convertToPdfPoint(x,y);const svgPath=pts=>pts.map((q,i)=>{const[a,b]=cv(q);return(i?"L":"M")+a.toFixed(2)+" "+(-b).toFixed(2)}).join(" ");
       const line=(a,b,c,w)=>{const A=cv(a),B=cv(b);P.drawLine({start:{x:A[0],y:A[1]},end:{x:B[0],y:B[1]},thickness:w,color:c})};
       const text=(s,x,y,size,c)=>{const A=cv([x,y]);P.drawText(s,{x:A[0],y:A[1],size,font,color:c,rotate:degrees(rot)})};
@@ -1376,7 +1411,7 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
   <div class="tw"><table class="lt"><thead><tr><th></th><th>물량표 명칭</th><th>도면 표기</th><th>그리기</th><th>단위</th><th>해치·선 모양</th><th>타원</th><th>폭 빠른선택(mm)</th><th></th></tr></thead><tbody id="libT"></tbody></table></div>
   <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="libAdd" style="border:1px solid var(--line)">+ 손상 추가</button><button class="btn" id="libReset" style="border:1px solid var(--line)">기본값으로</button></div>
   <h4>표기</h4><div class="opt">
-   <label>글자 크기 (pt)<input id="oFs" type="number" step="0.5" min="2" max="20" value="${o.fs}"></label>
+   <label>${S.pdf&&!S.isSample?"이 망도 라벨 크기 (pt)":"라벨 크기 기본값 (pt)"}<input id="oFs" type="number" step="0.5" min="2" max="20" value="${S.pdf&&!S.isSample?FSb():o.fs}"></label>
    <label>해치 간격 (pt)<input id="oHs" type="number" step="0.2" min="0.8" max="10" value="${o.hatchSp}"></label>
    <label>균열선 굵기 (얇은/굵은)<span style="display:flex;gap:6px"><input id="oLw" type="number" step="0.1" value="${o.lw}"><input id="oLw2" type="number" step="0.1" value="${o.lwThick}"></span></label>
    <label>면적 곱하기 표기<select id="oX"><option value="X" ${o.xch==="X"?"selected":""}>0.3X0.5</option><option value="x" ${o.xch==="x"?"selected":""}>0.3x0.5</option><option value="×" ${o.xch==="×"?"selected":""}>0.3×0.5</option></select></label>
@@ -1395,7 +1430,7 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
   renderLibT();
   if($("#oTag"))$("#oTag").onchange=e=>{S.doc.tag=e.target.value;redraw();autosave()};
   const bind=(id,k,f=v=>v)=>{$(id).onchange=e=>{S.opt[k]=f(e.target.type==="checkbox"?e.target.checked:e.target.value);saveOpt();redraw()}};
-  bind("#oBy","by",v=>v.trim());bind("#oFs","fs",parseFloat);bind("#oHs","hatchSp",parseFloat);bind("#oLw","lw",parseFloat);bind("#oLw2","lwThick",parseFloat);bind("#oYr","curYear",v=>parseInt(v)||new Date().getFullYear());
+  bind("#oBy","by",v=>v.trim());$("#oFs").onchange=e=>{const v=parseFloat(e.target.value);if(!(v>0))return;if(S.pdf&&!S.isSample){S.doc.fs=v;autosave()}else{S.opt.fs=v;saveOpt()}redraw()};bind("#oHs","hatchSp",parseFloat);bind("#oLw","lw",parseFloat);bind("#oLw2","lwThick",parseFloat);bind("#oYr","curYear",v=>parseInt(v)||new Date().getFullYear());
   bind("#oC1","stNew");bind("#oC2","stOld");bind("#oC3","stRep");bind("#oC4","stDel");bind("#oX","xch");bind("#oName","showName");bind("#oScale","toScale");bind("#oEx","showEx");bind("#oRep","repeat");bind("#oFinger","fingerDraw");
   $("#yrCols").onchange=e=>{const y=e.target.dataset.yr;if(!y)return;S.opt.yearColors[y]=e.target.value;saveOpt();redraw()};
   $("#libAdd").onclick=()=>{S.lib.push({id:"u"+uid(),name:"새 손상",short:"새 손상",geom:"area",unit:"㎡",hatch:"grid",widths:"",shape:""});saveLib()};
@@ -1459,7 +1494,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="1.9";
+const APP_VERSION="2.0";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
