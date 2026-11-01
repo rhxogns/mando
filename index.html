@@ -887,7 +887,8 @@ function newDamage(t,pts){const pg=page();const fs=FSb();
   if(U==="㎡"&&t.geom==="area"&&sc){const b=bbox(pts);it.a=fmt(Math.max(.1,Math.round(b.w*sc[0]*10)/10));it.b=fmt(Math.max(.1,Math.round(b.h*sc[1]*10)/10))}
   if(INC){it.prog=INC.no;if(INC.tname)it.tname=INC.tname;for(const k of["w","L","a","b","n"])if(INC.inc[k]!=null&&INC.inc[k]!=="")it[k]=INC.inc[k]}
   const an=anchorOf(it);it.lp=[r2(an[0]+fs*.5),r2(an[1]-fs*.4)];
-  liveSet(itemSVG(it));openQty(it,"new")}
+  if(lastPhoto()&&S.opt.autoPhoto!==false)it.ph=String(lastPhoto()+1);
+  liveSet(itemSVG(it));openQty(it,"new");if(it.ph){Q.phAuto=it.ph;renderQty()}}
 function fieldsOf(it){const g=it.kind==="exq"?libById(it.type).geom:({m:"line","㎡":"area",EA:"point"})[unitOf(it)];let f;
   if(g==="line")f=[["w","폭 (mm)"],["L","길이 (m)"],["n","개소"]];else if(g==="area")f=[["a","가로 (m)"],["b","세로 (m)"],["n","개소"]];else f=[["n","개소 (EA)"]];
   if(it.kind==="damage"&&it.st!=="new")f=[["yr","적출년도"]].concat(f);if(it.kind==="damage"||it.kind==="photo")f=it.kind==="photo"?[["ph","사진번호 (#)"]]:f.concat([["ph","사진번호 #"]]);return f}
@@ -901,7 +902,7 @@ function renderQty(){const it=Q.it,t=typeOf(it),isEx=Q.mode==="ex";
   const qv=isPh?{v:"",u:""}:isEx?rowQty(Q.row,it):qtyValue(it),qt=isPh?"":isEx?rowQtyText(Q.row,it):qtyText(it);
   qty.innerHTML=`<div class="qh"><h4>${title}</h4>${isEx||isPh?"":`<div class="st">${STATUS.map(([k,n])=>{const c=k==="old"?yearColor(it.yr):k==="rep"?S.opt.stRep:S.opt.stNew;return `<button data-st="${k}" class="${it.st===k?"on":""}" style="${it.st===k?`background:${c}`:`color:${c}`}">${n}</button>`}).join("")}</div>`}</div>
   ${!isEx&&!isPh?`<div class="yrrow">${it.st==="new"?`적출년도 <b>${esc(it.yr||S.opt.curYear)}</b> (이번 조사)`:""}<span class="sp" style="flex:1"></span>단위 <span class="st">${UNITS.map(u=>`<button data-u="${u}" class="${unitOf(it)===u?"on":""}" style="${unitOf(it)===u?"background:var(--ink);color:var(--chrome)":""}">${u}</button>`).join("")}</span></div>`:""}
-  <div class="fields">${flds.map(([k,l])=>`<div class="fld ${Q.f===k?"on":""}" data-f="${k}"><small>${l}</small><span>${esc(String(it[k]??""))}</span></div>`).join("")}</div>
+  <div class="fields">${flds.map(([k,l])=>{const auto=k==="ph"&&Q.phAuto&&it.ph===Q.phAuto;return `<div class="fld ${Q.f===k?"on":""}" data-f="${k}"><small>${l}${auto?` <b style="color:var(--focus)">자동 제안 · 다르면 눌러서 수정</b>`:""}</small><span ${auto?'style="color:var(--focus)"':""}>${esc(String(it[k]??""))}</span></div>`}).join("")}</div>
   <div class="chips">${chips.map(c=>`<button data-c="${c}">${c}</button>`).join("")}<span class="sp"></span><span class="prev">표기 <b>${esc(qt)}</b> · 물량 ${qv.v}${qv.u}${it.ph?` · <b>${esc(phText(it.ph))}</b>`:""}</span></div>
   <div class="pad">${["7","8","9","⌫","4","5","6","C","1","2","3","→","0",".","취소","확인"].map(k=>`<button data-k="${k}" class="${k==="확인"?"ok":k==="취소"||k==="→"||k==="C"?"cx":""}">${k==="."&&Q.f==="ph"?",":k}</button>`).join("")}</div>`;
   if(Q.mode==="new")liveSet(itemSVG(it));else redraw()}
@@ -930,7 +931,7 @@ function commitQty(){const it=Q.it;if(it.ph!=null)it.ph=String(it.ph).replace(/,
     startInc(row,inc);return}
   else{(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[]}
   qty.hidden=true;Q=null;liveSet("");redraw();autosave()}
-function openExPhoto(row){const it={kind:"photo",type:"ex:point",ph:page().exp[row.no]||"",n:1};openQty(it,"photo",row);Q.f="ph";renderQty()}
+function openExPhoto(row){const cur=page().exp[row.no]||"";const it={kind:"photo",type:"ex:point",ph:cur||(lastPhoto()?String(lastPhoto()+1):""),n:1};openQty(it,"photo",row);Q.f="ph";if(!cur&&it.ph)Q.phAuto=it.ph;renderQty()}
 function cancelQty(){if(!Q)return;if(Q.mode==="new"&&S.armedInc)disarm();if(Q.mode==="edit")Object.assign(Q.it,JSON.parse(Q.orig));qty.hidden=true;Q=null;liveSet("");redraw()}
 function openExProg(row){const g=geomOfRow(row);const q=page().exq[row.no];
   const it={kind:"exq",type:"ex:"+g,w:q?q.w:(g==="line"?row.w:""),L:q?q.L:(g==="line"?row.L:""),a:q?q.a:(g==="area"?row.w:""),b:q?q.b:(g==="area"?row.L:""),n:q?q.n:(+row.n||1)};
@@ -1494,7 +1495,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="2.0";
+const APP_VERSION="2.1";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
