@@ -1,5 +1,5 @@
 /* 망도노트 서비스워커 — 앱 파일을 탭에 저장해 두고 인터넷 없이 실행 */
-const VERSION="1.7";
+const VERSION="1.8";
 const CACHE="mangdo-"+VERSION;
 const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:"reload"})))).then(()=>self.skipWaiting()))});
