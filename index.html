@@ -161,6 +161,12 @@ button{cursor:pointer}
 .yrrow b{font-family:var(--f-num);color:var(--ink);font-size:14px}
 #dmenu .mh{display:flex;justify-content:space-between}
 #dmenu .mh em{font-style:normal;font-family:var(--f-num)}
+/* ---- app lock ---- */
+#lock{position:fixed;inset:0;z-index:100;background:var(--paper);display:flex;align-items:center;justify-content:center;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#lock[hidden]{display:none!important}
+.lbox{width:min(360px,100%);background:var(--chrome);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:24px 22px;display:flex;flex-direction:column;gap:10px}
+.lbox .brand{font-size:20px;margin-bottom:6px}
+.lbox input{font-size:20px!important;letter-spacing:.15em}
 /* ---- page thumbnails ---- */
 #thumbs{width:132px;flex:none;background:var(--chrome);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 #app.home #thumbs{display:none!important}
@@ -309,6 +315,14 @@ button{cursor:pointer}
   </div>
 </div>
 
+<div id="lock" hidden><form class="lbox" id="lockForm" autocomplete="off">
+  <div class="brand"><i></i>망도노트</div>
+  <label class="fld2" for="lockPw">비밀번호를 입력하세요<input id="lockPw" type="password" autocomplete="current-password"></label>
+  <p id="lockMsg" class="help" style="min-height:1.4em;color:var(--accent);margin:0"></p>
+  <button class="btn primary" id="lockOk" type="submit" style="width:100%;justify-content:center;min-height:44px">열기</button>
+  <button class="btn" id="lockForgot" type="button" style="width:100%;justify-content:center;color:var(--muted);font-size:13px">비밀번호를 잊었어요</button>
+</form></div>
+<script>try{if(localStorage.getItem("mdn.lock"))document.getElementById("lock").hidden=false}catch(e){}</script>
 <div id="dmenu" class="pop" hidden></div>
 <div id="cmenu" class="pop" hidden></div>
 <div id="selbar" class="pop" hidden></div>
@@ -907,7 +921,7 @@ function setTool(t){S.tool=t;disarm();if(t!=="select"){S.sel=null;S.selEx=null}d
 document.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 function renderInk(){$("#inkCols").innerHTML=INK_COLORS.map(c=>`<button class="btn ${S.opt.inkColor===c?"on":""}" data-ink="${c}" aria-label="펜 색" style="padding:0 6px"><span class="dot" style="background:${c}"></span></button>`).join("")}
 $("#inkCols").onclick=e=>{const b=e.target.closest("[data-ink]");if(!b)return;S.opt.inkColor=b.dataset.ink;saveOpt();renderInk();if(S.tool!=="pen")setTool("pen")};
-document.addEventListener("keydown",e=>{if(e.target.matches("input,select,textarea"))return;if($("#app").classList.contains("home")||!$("#modal").hidden)return;
+document.addEventListener("keydown",e=>{if(e.target.matches("input,select,textarea")||!$("#lock").hidden)return;if($("#app").classList.contains("home")||!$("#modal").hidden)return;
   if(!qty.hidden&&Q){const map={Enter:"확인",Escape:"취소",Backspace:"⌫",Tab:"→"};const k=map[e.key]||(/^[0-9.]$/.test(e.key)?e.key:null);
     if(k){e.preventDefault();const b=qty.querySelector(`[data-k="${k}"]`);b&&b.click()}return}
   if(!dmenu.hidden){if(/^[1-9]$/.test(e.key)){const t=menuOrder()[+e.key-1];t&&chooseType(t.id)}if(e.key==="Escape")hideMenu();return}
@@ -1232,13 +1246,52 @@ $("#mergeIn").onchange=async e=>{const files=[...e.target.files];e.target.value=
   $("#panel").hidden=false;S.panelAll=true;$("#vAll").classList.add("on");$("#vPage").classList.remove("on");renderPanel()};
 function snapAll(){for(const k in S.doc.pages){(S.undo[k]=S.undo[k]||[]).push(JSON.stringify({items:S.doc.pages[k].items,exj:S.doc.pages[k].exj,exp:S.doc.pages[k].exp,exq:S.doc.pages[k].exq}));S.redo[k]=[]}}
 
+
+/* ---------- 앱 잠금 (켤 때 한 번 비밀번호) ---------- */
+const LOCK_KEY="mdn.lock";
+function lockGet(){try{return JSON.parse(localStorage.getItem(LOCK_KEY)||"null")}catch(e){return null}}
+function lockSet(v){try{if(v)localStorage.setItem(LOCK_KEY,JSON.stringify(v));else localStorage.removeItem(LOCK_KEY);return true}catch(e){return false}}
+async function pwHash(pw,salt){const data=new TextEncoder().encode(salt+"|"+pw);
+  try{if(crypto&&crypto.subtle){const b=await crypto.subtle.digest("SHA-256",data);return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}}catch(e){}
+  let h1=0x811c9dc5,h2=0x1000193;for(const c of data){h1=Math.imul(h1^c,16777619);h2=Math.imul(h2+c,2654435761)}return(h1>>>0).toString(16)+(h2>>>0).toString(16)}
+async function pwCheck(pw){const L=lockGet();if(!L)return true;return(await pwHash(pw,L.salt))===L.hash}
+function showLock(){const L=lockGet();if(!L){$("#lock").hidden=true;return}$("#lock").hidden=false;$("#lockPw").value="";$("#lockMsg").textContent="";setTimeout(()=>$("#lockPw").focus(),80)}
+$("#lockForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("#lockPw").value;if(!pw){$("#lockMsg").textContent="비밀번호를 입력하세요";return}
+  if(await pwCheck(pw)){$("#lock").hidden=true;$("#lockPw").value=""}else{$("#lockMsg").textContent="비밀번호가 맞지 않습니다";$("#lockPw").select()}});
+$("#lockForgot").onclick=()=>{const f=$("#lockForm");f.innerHTML=`<div class="brand"><i></i>망도노트</div>
+  <p class="help" style="color:var(--ink);margin:0">비밀번호는 이 패드에만 저장되어 있어서 찾을 수 없습니다.<br><br>
+  <b>초기화</b>하면 비밀번호와 함께 이 패드에 보관한 <b>구조물 PDF와 기입 내용이 모두 지워집니다.</b> [저장]해 둔 작업 파일(.json)이 있으면 다시 불러와 이어서 작업할 수 있습니다.</p>
+  <label class="fld2" for="rsTxt">계속하려면 <b style="color:var(--ink)">초기화</b> 라고 입력하세요<input id="rsTxt" autocomplete="off"></label>
+  <button class="btn" type="button" id="rsGo" style="width:100%;justify-content:center;min-height:44px;background:var(--accent);color:#fff">모두 지우고 초기화</button>
+  <button class="btn" type="button" id="rsBack" style="width:100%;justify-content:center">돌아가기</button>`;
+  $("#rsBack").onclick=()=>location.reload();
+  $("#rsGo").onclick=async()=>{if($("#rsTxt").value.trim()!=="초기화")return toast("'초기화'라고 입력하세요");
+    try{if(idb)idb.close()}catch(e){}try{["mdn.lock","mdn.curFolder"].forEach(k=>localStorage.removeItem(k))}catch(e){}
+    await new Promise(r=>{try{const q=indexedDB.deleteDatabase("mangdo-note");q.onsuccess=q.onerror=q.onblocked=()=>r()}catch(e){r()}});location.reload()}};
+function lockSettingsHTML(){const on=!!lockGet();return `<h4>앱 잠금</h4><p class="help">망도노트를 켤 때 한 번 비밀번호를 묻습니다. 비밀번호는 이 패드에만 저장되며 패드마다 따로 정합니다.</p>
+  <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="help" style="align-self:center;color:var(--ink)">현재: <b>${on?"켜짐":"꺼짐"}</b></span>
+  ${on?`<button class="btn" id="lkChg" style="border:1px solid var(--line)">비밀번호 변경</button><button class="btn" id="lkOff" style="border:1px solid var(--line)">잠금 끄기</button>`:`<button class="btn primary" id="lkOn">비밀번호 설정</button>`}</div>`}
+function bindLockSettings(){const back=()=>openSettings();
+  const form=(title,needCur,needNew,onOk)=>{modal(title,`${needCur?`<label class="fld2">현재 비밀번호<input id="lkCur" type="password" autocomplete="current-password"></label>`:""}
+    ${needNew?`<label class="fld2">새 비밀번호 (4자 이상)<input id="lkN1" type="password" autocomplete="new-password"></label><label class="fld2">새 비밀번호 확인<input id="lkN2" type="password" autocomplete="new-password"></label>
+    <p class="help">잊어버리면 찾을 수 없고, 초기화하면 이 패드의 기입 내용이 지워집니다. 꼭 기억할 수 있는 비밀번호로 정하세요.</p>`:""}
+    <div class="mact"><button class="btn" id="lkCx">취소</button><button class="btn primary" id="lkOk">확인</button></div>`);
+    $("#lkCx").onclick=back;$("#lkOk").onclick=async()=>{if(needCur&&!(await pwCheck($("#lkCur").value)))return toast("현재 비밀번호가 맞지 않습니다");
+      let pw=null;if(needNew){pw=$("#lkN1").value;if(pw.length<4)return toast("4자 이상으로 정하세요");if(pw!==$("#lkN2").value)return toast("새 비밀번호가 서로 다릅니다")}
+      await onOk(pw);back()}};
+  const setPw=async pw=>{const salt=Math.random().toString(36).slice(2,12);if(lockSet({salt,hash:await pwHash(pw,salt)}))toast("비밀번호를 설정했습니다. 다음에 켤 때부터 물어봅니다",3500);else toast("이 브라우저에서는 저장할 수 없습니다")};
+  const on=$("#lkOn"),chg=$("#lkChg"),off=$("#lkOff");
+  if(on)on.onclick=()=>form("비밀번호 설정",false,true,setPw);
+  if(chg)chg.onclick=()=>form("비밀번호 변경",true,true,setPw);
+  if(off)off.onclick=()=>form("잠금 끄기",true,false,async()=>{lockSet(null);toast("잠금을 껐습니다")})}
+
 /* ---------- modal / settings ---------- */
 function modal(title,html){$("#mTitle").textContent=title;$("#mBody").innerHTML=html;$("#modal").hidden=false}
 function closeModal(){$("#modal").hidden=true}
 $("#mX").onclick=closeModal;$("#modal").addEventListener("pointerdown",e=>{if(e.target.id==="modal")closeModal()});
 $("#bSet").onclick=openSettings;
 function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String(o.curYear));
-  modal("설정",`<h4>이번 조사 · 색</h4><div class="opt">
+  modal("설정",`${lockSettingsHTML()}<h4>이번 조사 · 색</h4><div class="opt">
    <label>이 탭 이름 / 조사자 (합칠 때 구분용)<input id="oBy" value="${esc(o.by||"")}" placeholder="예: 1번탭 고태훈"></label>
    <label>이번 조사 연도 (신규 손상 적출년도)<input id="oYr" type="number" value="${o.curYear}"></label>
    <label>신규 손상 색<input id="oC1" type="color" value="${o.stNew}"></label>
@@ -1267,7 +1320,7 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
    · <b>선택</b> 도구로 기존 손상 번호(점선 동그라미)를 누르면 <b>유지·진행·보수·삭제</b> 판정. 진행은 바뀐 규모를 입력<br>
    · 손가락: 한 손가락 이동, 두 손가락 확대/축소<br>
    · 단축키 <kbd>P</kbd> 펜 <kbd>V</kbd> 선택 <kbd>E</kbd> 지우개 <kbd>S</kbd> 손상메뉴 <kbd>F</kbd> 맞춤 <kbd>←</kbd><kbd>→</kbd> 페이지</div>`);
-  renderLibT();
+  renderLibT();bindLockSettings();
   const bind=(id,k,f=v=>v)=>{$(id).onchange=e=>{S.opt[k]=f(e.target.type==="checkbox"?e.target.checked:e.target.value);saveOpt();redraw()}};
   bind("#oBy","by",v=>v.trim());bind("#oFs","fs",parseFloat);bind("#oHs","hatchSp",parseFloat);bind("#oLw","lw",parseFloat);bind("#oLw2","lwThick",parseFloat);bind("#oYr","curYear",v=>parseInt(v)||new Date().getFullYear());
   bind("#oC1","stNew");bind("#oC2","stOld");bind("#oC3","stRep");bind("#oC4","stDel");bind("#oX","xch");bind("#oName","showName");bind("#oScale","toScale");bind("#oEx","showEx");bind("#oRep","repeat");bind("#oFinger","fingerDraw");
@@ -1320,7 +1373,7 @@ function sampleDoc(){const it=(no,type,pts,o)=>Object.assign({id:uid(),kind:"dam
   return{pages:{1:{label:"",scale:30/600,items,exj:{2:"rep",4:"prog"},exq:{4:{a:"0.6",b:"0.5",n:1}}}}}}
 
 /* ---------- boot ---------- */
-async function boot(){renderInk();thumbsEl.hidden=!thPref();$("#bThumbs").classList.toggle("on",!thumbsEl.hidden);await idbOpen();await libLoad();await migrate();setMode("home");
+async function boot(){showLock();renderInk();thumbsEl.hidden=!thPref();$("#bThumbs").classList.toggle("on",!thumbsEl.hidden);await idbOpen();await libLoad();await migrate();setMode("home");
   if(!idb)toast("이 브라우저에서는 앱 안에 보관할 수 없습니다. 앱으로 설치해서 쓰세요",5000)}
 window.addEventListener("beforeunload",e=>{if(S.dirty){e.preventDefault();e.returnValue=""}});
 window.__mdn=S;boot();
@@ -1329,7 +1382,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="1.5";
+const APP_VERSION="1.6";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
