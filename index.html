@@ -520,7 +520,10 @@ const jName=j=>(JUDGE.find(x=>x[0]===j)||JUDGE[0])[1];
 function libById(id){if(id&&id.startsWith("ex:")){const g=id.slice(3);return{id,name:"",short:"",geom:g,unit:UNIT[g],hatch:g==="line"?"plain":g==="point"?"x":"none",widths:""}}
   return S.lib.find(t=>t.id===id)||DEF_LIB.find(t=>t.id===id)||{id,name:id,short:id,geom:"area",unit:"㎡",hatch:"none",widths:""}}
 function kindNow(){const k=(S.cur&&S.cur.kind)||(S.doc&&S.doc.kind)||"";return k==="bridge"||k==="tunnel"?k:""}
-function setKind(k){if(S.cur){S.cur.kind=k;try{libSave()}catch(e){}}S.doc.kind=k;autosave()}
+function setKind(k){const old=kindNow();if(S.cur){S.cur.kind=k;try{libSave()}catch(e){}}S.doc.kind=k;if(old!==k&&S.doc.mem&&!memList(k).includes(S.doc.mem))S.doc.mem="";autosave()}
+function kindSwap(){const k=kindNow(),to=k==="bridge"?"tunnel":"bridge",nm={bridge:"교량",tunnel:"터널"};
+  modal("구조물 종류 바꾸기",`<p class="help" style="color:var(--ink)">지금 <b>${nm[k]||"미지정"}</b>입니다. <b>${nm[to]}</b>(으)로 옮길까요?<br>부재위치 목록과 상태등급 기준이 ${nm[to]} 것으로 바뀝니다. 이미 기입한 손상의 부재위치는 그대로 남으니 필요하면 손상을 눌러 고치세요.</p><div class="mact"><button class="btn" id="kwCx">취소</button><button class="btn primary" id="kwOk">${nm[to]}(으)로 옮기기</button></div>`);
+  $("#kwCx").onclick=closeModal;$("#kwOk").onclick=()=>{setKind(to);closeModal();redraw();toast(`${nm[to]}(으)로 옮겼습니다`)}}
 function memList(k){k=k||kindNow();if(!k)return[];const ex=(S.opt.memExtra&&S.opt.memExtra[k])||[];return MEMBERS[k].concat(ex.filter(x=>!MEMBERS[k].includes(x)))}
 function gradeInfo(it){const k=kindNow()||"tunnel";const nm=typeOf(it).name||"";for(const g of GRADES[k])if(g[0].test(nm))return{title:g[1],d:g[2]};return null}
 function page(n=S.n){const p=S.doc.pages[n]||(S.doc.pages[n]={label:"",scale:0,items:[]});p.exj=p.exj||{};p.exq=p.exq||{};p.exp=p.exp||{};return p}
@@ -908,7 +911,7 @@ function memPickerHTML(){const k=kindNow();let h=`<div class="mh"><span>부재�
 function openMenu(cx,cy,anchor,mode="new",forceMem){menuAnchor=anchor;menuMode=mode;menuXY=[cx,cy];
   if(mode==="new"&&(forceMem||!S.doc.mem)){dmenu.innerHTML=memPickerHTML();placeMenu(cx,cy);return}
   let h="";let k=0;
-  if(mode==="new")h+=`<div class="mh memh"><span>부재 <b>${esc(S.doc.mem)}</b> · ${kindNow()==="bridge"?"교량":"터널"}</span><button data-memchg="1">변경</button></div>`;
+  if(mode==="new")h+=`<div class="mh memh"><span>부재 <b>${esc(S.doc.mem)}</b></span><span><button data-kswap="1" title="교량/터널 바꾸기">${kindNow()==="bridge"?"교량":"터널"} ⇄</button> <button data-memchg="1">변경</button></span></div>`;
   const rec=S.recent.map(id=>S.lib.find(t=>t.id===id)).filter(Boolean).slice(0,3);
   if(rec.length&&mode==="new"){h+=`<div class="mh">최근</div>`;rec.forEach(t=>h+=menuBtn(t,""))}
   for(const g of UNITS){const ts=S.lib.filter(t=>!t.custom&&(t.unit||UNIT[t.geom])===g);if(!ts.length)continue;
@@ -933,6 +936,7 @@ function hideMenu(){dmenu.hidden=true}
 dmenu.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const D=b.dataset;
   if(D.kind){setKind(D.kind);dmenu.innerHTML=memPickerHTML();placeMenu(...menuXY);return}
   if(D.mem!=null){S.doc.mem=D.mem;autosave();openMenu(menuXY[0],menuXY[1],menuAnchor,"new");return}
+  if(D.kswap){hideMenu();kindSwap();return}
   if(D.memchg){openMenu(menuXY[0],menuXY[1],menuAnchor,"new",true);return}
   if(D.memadd){hideMenu();addMember(()=>openMenu(menuXY[0],menuXY[1],menuAnchor,"new"));return}
   if(D.newdmg){hideMenu();registerDamage();return}
@@ -1221,7 +1225,7 @@ async function flushSave(){if(saveT){clearTimeout(saveT);await doSave()}}
 /* ---------- library: 용역 폴더 → 구조물 (PDF는 앱 안에 보관) ---------- */
 const LIB={folders:[],structs:[]};let curKind=(()=>{try{return localStorage.getItem("mdn.curKind")||"all"}catch(e){return"all"}})();const kOK=x=>curKind==="all"||x.kind===curKind;let curFolder=(()=>{try{return localStorage.getItem("mdn.curFolder")||"all"}catch(e){return"all"}})();
 const KIND={bridge:"교량",tunnel:"터널",other:"기타"};
-const guessKind=n=>/터널|tunnel|갱구/i.test(n)?"tunnel":/교|bridge|고가|램프/i.test(n)?"bridge":"other";
+const guessKind=n=>/터널|tunnel|갱구|갱문|라이닝|수직구|정거장|지하차도|공동구|GTX/i.test(n)?"tunnel":/교량|bridge|고가|램프|[가-힣0-9](?<!학)교(?=$|[\s_()\-.,·])/i.test(n)?"bridge":"other";
 function kindSVG(k){if(k==="tunnel")return `<svg viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 15h24"/><path d="M5 15V9a8 7 0 0116 0v6"/><path d="M9 15v-5a4 3.5 0 018 0v5"/></svg>`;
   if(k==="bridge")return `<svg viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 6h24"/><path d="M1 6c4 0 6 3 6 9M25 6c-4 0-6 3-6 9M7 6v9M19 6v9"/><path d="M10 15c0-4 1.5-6 3-6s3 2 3 6"/></svg>`;
   return `<svg viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="2" width="16" height="12" rx="1.5"/><path d="M5 6h16"/></svg>`}
@@ -1297,10 +1301,11 @@ function deleteFolder(id){const f=LIB.folders.find(x=>x.id===id);if(!f)return;co
   $("#fCx").onclick=closeModal;$("#fOk").onclick=async()=>{LIB.folders=LIB.folders.filter(x=>x.id!==id);curFolder="all";await libSave();closeModal();renderHome()}}
 const cmenu=$("#cmenu");let cmTarget=null;
 function cardMenu(id,btn){const st=LIB.structs.find(x=>x.id===id);if(!st)return;cmTarget=st;
-  cmenu.innerHTML=`<button data-c="open">열기</button><button data-c="edit">이름 · 종류 · 용역 변경</button>${st.noPdf?`<button data-c="repdf">PDF 다시 넣기</button>`:""}<button data-c="del" class="dz">삭제</button>`;
+  cmenu.innerHTML=`<button data-c="open">열기</button>${st.kind!=="tunnel"?`<button data-c="toT">터널로 옮기기</button>`:""}${st.kind!=="bridge"?`<button data-c="toB">교량으로 옮기기</button>`:""}<button data-c="edit">이름 · 종류 · 용역 변경</button>${st.noPdf?`<button data-c="repdf">PDF 다시 넣기</button>`:""}<button data-c="del" class="dz">삭제</button>`;
   cmenu.hidden=false;const r=btn.getBoundingClientRect();cmenu.style.left=Math.max(8,Math.min(r.right-200,innerWidth-212))+"px";cmenu.style.top=Math.min(r.bottom+4,innerHeight-cmenu.offsetHeight-8)+"px"}
 document.addEventListener("pointerdown",e=>{if(!cmenu.hidden&&!cmenu.contains(e.target)&&!e.target.closest("[data-m]"))cmenu.hidden=true},true);
 cmenu.onclick=e=>{const b=e.target.closest("[data-c]");if(!b||!cmTarget)return;cmenu.hidden=true;const st=cmTarget,c=b.dataset.c;
+  if(c==="toT"||c==="toB"){st.kind=c==="toT"?"tunnel":"bridge";libSave().then(()=>{renderHome();toast(`${st.name} → ${KIND[st.kind]}(으)로 옮겼습니다`)});return}
   if(c==="open")openStruct(st.id);if(c==="edit")editStruct(st);if(c==="del")deleteStruct(st);if(c==="repdf"){S.repdf=st;$("#fileIn").click()}};
 function editStruct(st){modal("구조물 정보",`<label class="fld2">구조물 이름<input id="sNm" value="${esc(st.name)}"></label>
   <label class="fld2">종류<select id="sKd">${Object.entries(KIND).map(([k,v])=>`<option value="${k}" ${st.kind===k?"selected":""}>${v}</option>`).join("")}</select></label>
@@ -1606,7 +1611,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="2.4";
+const APP_VERSION="2.4.1";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
