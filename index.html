@@ -161,6 +161,25 @@ button{cursor:pointer}
 .yrrow b{font-family:var(--f-num);color:var(--ink);font-size:14px}
 #dmenu .mh{display:flex;justify-content:space-between}
 #dmenu .mh em{font-style:normal;font-family:var(--f-num)}
+#dmenu .kseg{display:flex;gap:6px;padding:2px 8px 6px}
+#dmenu .kseg button{justify-content:center;border:1px solid var(--line);padding:8px 0;font-weight:600}
+#dmenu .kseg button.on,#dmenu button.on{background:var(--ink);color:var(--chrome)}
+#dmenu .mhelp{font-size:12px;color:var(--muted);padding:4px 10px 8px;margin:0}
+#dmenu .memh{align-items:center;background:var(--soft);border-radius:7px;margin:2px 2px 4px;color:var(--ink);font-size:12.5px}
+#dmenu .memh button{width:auto;padding:4px 10px;font-size:12px;border:1px solid var(--line);background:#fff}
+#dmenu button[data-newdmg]{color:var(--accent);font-weight:600}
+.grd{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
+.grd small{color:var(--muted);font-size:11.5px;padding:0 2px}
+.grd button{text-align:left;border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 9px;font-size:13px}
+.grd button b{display:inline-block;width:16px;font-family:var(--f-num)}
+.grd button.on{background:var(--ink);color:var(--chrome)}
+.ktabs{display:flex;gap:6px;margin:0 0 12px}
+.ktabs button{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:18px;padding:6px 14px;font-size:14px}
+.ktabs button svg{width:22px;height:14px}
+.ktabs button em{font-style:normal;color:var(--muted);font-family:var(--f-num);font-size:12px}
+.ktabs button.on{background:var(--ink);color:var(--chrome);border-color:var(--ink)}
+.ktabs button.on em{color:inherit;opacity:.75}
+#tmU .btn.on{background:var(--ink);color:var(--chrome)}
 /* ---- app lock ---- */
 #lock{position:fixed;inset:0;z-index:100;background:var(--paper);display:flex;align-items:center;justify-content:center;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #lock[hidden]{display:none!important}
@@ -417,6 +436,7 @@ const DEF_LIB=[
  L_("c2","균열(Cw=0.3㎜이상)","균열","line","m","plain","0.3,0.4,0.5,1.0"),
  L_("cef","균열부백태(Cw=0.3㎜미만)","균열부백태","line","m","plain","0.1,0.2"),
  L_("crp","보수부균열(Cw=0.3㎜미만)","보수부균열","line","m","plain","0.1,0.2"),
+ L_("crp2","보수부균열(Cw=0.3㎜이상)","보수부균열","line","m","plain","0.3,0.4,0.5,1.0"),
  L_("joint","시공이음분리","시공이음분리","line","m","zigzag"),
  L_("dlam","층분리","층분리","line","m","zigzag"),
  L_("dfm","좌굴, 변형","변형","line","m","wave"),
@@ -428,17 +448,17 @@ const DEF_LIB=[
  L_("scal","박리","박리","area","㎡","grid"),
  L_("brk","파손","파손","area","㎡","grid"),
  L_("spall","박락","박락","area","㎡","grid"),
- L_("efl","백태","백태","area","㎡","circles","","ellipse"),
- L_("leak","누수","누수","area","㎡","hex","","ellipse"),
- L_("seep","체수","체수","area","㎡","hex","","ellipse"),
- L_("leakef","누수흔적및백태","누수흔적,백태","area","㎡","hex+circles","","ellipse"),
- L_("disc","콘크리트변색","콘크리트변색","area","㎡","dotsdense","","ellipse"),
- L_("rust","녹물","녹물","area","㎡","dotsdense","","ellipse"),
+ L_("efl","백태","백태","area","㎡","circles","",""),
+ L_("leak","누수","누수","area","㎡","hex","",""),
+ L_("seep","체수","체수","area","㎡","hex","",""),
+ L_("leakef","누수흔적및백태","누수흔적,백태","area","㎡","hex+circles","",""),
+ L_("disc","콘크리트변색","콘크리트변색","area","㎡","dotsdense","",""),
+ L_("rust","녹물","녹물","area","㎡","dotsdense","",""),
  L_("plate","철판보강부","철판보강부","area","㎡","xmarks"),
- L_("cor","강재부식","강재부식","area","㎡","diag","","ellipse"),
+ L_("cor","강재부식","강재부식","area","㎡","diag","",""),
  L_("plast","소성변형","소성변형","area","㎡","dashh"),
  L_("scour","기초의 세굴","세굴","area","㎡","scour"),
- L_("rtrace","보수흔적","보수흔적","area","㎡","vert","","ellipse"),
+ L_("rtrace","보수흔적","보수흔적","area","㎡","vert","",""),
  L_("debris","이물질 퇴적","이물질 퇴적","area","㎡","speckle"),
  L_("paint","도장박리","도장박리","area","㎡","rdiagwide"),
  L_("void","펀칭, 공동","공동","point","EA","star"),
@@ -453,9 +473,28 @@ DEF_LIB.splice(DEF_LIB.findIndex(t=>t.id==="dfm")+1,0,L_("step","단차","단차
 for(const t of DEF_LIB)Object.assign(t,FLAG_DEF[t.id]||{});
 const TAGS=[["","없음"],["상","상반기"],["하","하반기"],["정기","정기점검"],["정밀","정밀점검"],["진단","정밀안전진단"],["성능","성능평가"]];
 const DEF_OPT={fs:6,showName:true,showEx:true,hatchSp:2.2,lw:0.6,lwThick:1.1,fingerDraw:false,repeat:false,
-  stNew:"#e01b24",stOld:"#111111",stRep:"#1f5fd1",stDel:"#8a9099",yearColors:{},curYear:new Date().getFullYear(),inkColor:"#e01b24",xch:"X",by:"",toScale:true};
+  stNew:"#e01b24",stOld:"#111111",stRep:"#1f5fd1",stDel:"#8a9099",stChg:"#f08c00",yearColors:{},curYear:new Date().getFullYear(),inkColor:"#e01b24",xch:"X",by:"",toScale:true};
 const STATUS=[["new","신규"],["old","기존"],["rep","보수"]];
-const JUDGE=[["keep","유지"],["prog","진행"],["rep","보수"],["del","삭제"]];
+const JUDGE=[["keep","유지"],["prog","변경"],["rep","보수"],["del","삭제"]];
+/* 부재위치 (교량 · 터널) — 처음 한 번 고르면 다음 손상부터 자동 */
+const MEMBERS={bridge:["교면포장","바닥판","거더 외부","거더 내부","가로보","세로보","교대","교각","기초","받침장치","받침콘크리트","신축이음","난간 및 연석","날개벽","배수시설","점검시설","공중이 이용하는 부위","부착시설물","방호·보호시설","기타"],
+  tunnel:["천정부","아치부(어깨부)","측벽부","바닥부·인버트","공동구","배수시설","기지갱·연결갱","수직구","환기구","갱문·갱구부","기전실 등 부대시설","피난·안전시설","공중이 이용하는 부위","부착시설","기타"]};
+const CIRC="①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚";
+/* 상태평가 기준 요약 (2026.1 세부지침 안전점검·진단편) — a~e */
+const GRADES={
+ tunnel:[
+  [/누수|체수/,"터널 누수 [표 2.11]",["없음","스며있음","떨어짐","흐름","분출"]],
+  [/박리/,"터널 재질열화 · 박리",["없음","깊이 6㎜ 미만","6㎜ 이상~25㎜ 미만","25㎜ 이상 또는 조골재 손실","박리가 극심하여 즉시 보수 필요"]],
+  [/박락|층분리/,"터널 재질열화 · 층분리 및 박락",["없음","깊이 12㎜ 미만 또는 직경 75㎜ 미만","깊이 12~25㎜ 또는 직경 75~150㎜","깊이 25㎜ 이상 또는 직경 150㎜ 이상","박락이 극심하여 즉시 보수 필요"]],
+  [/백태|재료분리/,"터널 재질열화 · 백태, 재료분리",["없음","면적율 5% 미만","면적율 5~10%","면적율 10~20%","면적율 20% 이상"]],
+  [/철근노출|철근부식/,"터널 재질열화 · 철근노출",["없음","면적율 1% 미만","면적율 1~3%","면적율 3~5%","면적율 5% 이상"]],
+  [/파손|손상/,"터널 파손 및 손상 [표 2.12] (손상두께/설계두께)",["없음","1/6 미만","1/6 이상~1/3 미만","1/3 이상~1/2 미만","1/2 이상"]]],
+ bridge:[
+  [/망상균열/,"콘크리트 바닥판 · 2방향 균열 [표 1.11]",["망상균열폭 0.1㎜ 미만","0.1㎜ 이상~0.3㎜ 미만","0.3㎜ 이상","망상균열 진전으로 박리 발생","박리가 심해 펀칭파괴 가능성"]],
+  [/균열/,"콘크리트 바닥판 · 1방향 균열 [표 1.11]",["균열폭 0.1㎜ 미만","0.1~0.3㎜ · 균열률 2% 미만","0.3~0.5㎜ · 균열률 2~10%","0.5~1.0㎜ · 균열률 10~20%","1.0㎜ 이상 · 균열률 20% 이상"]],
+  [/누수|체수|백태/,"콘크리트 바닥판 · 누수 및 백태 [표 1.11]",["없음","누수·백태 면적 10% 미만","누수·백태 면적 10% 이상","누수로 데크플레이트 심한 부식·탈락","—"]],
+  [/철근노출|철근부식/,"콘크리트 바닥판 · 철근부식 [표 1.11]",["없음","없음","철근부식 손상면적 2% 미만","철근부식 손상면적 2% 이상","단면감소가 심해 안전성 저하"]],
+  [/박리|박락|파손|층분리|재료분리/,"콘크리트 바닥판 · 표면손상 [표 1.11]",["없음","표면손상 면적 2% 미만","면적 2% 이상~10% 미만","면적 10% 이상","—"]]]};
 const INK_COLORS=["#e01b24","#1f5fd1","#111111","#11875a"];
 const GEN_CHIPS=[0.1,0.2,0.3,0.5,1.0,1.5,2.0];
 
@@ -467,17 +506,23 @@ function ld(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}ca
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 S.lib=ld("mdn.lib3",null)||JSON.parse(JSON.stringify(DEF_LIB));
 for(const t of S.lib){if(FLAG_DEF[t.id]&&t.depth===undefined&&t.cw===undefined)Object.assign(t,FLAG_DEF[t.id]);if((t.id==="rebar"||t.id==="rcor")&&t.geom==="line"){const d=DEF_LIB.find(x=>x.id===t.id);Object.assign(t,{geom:"area",hatch:d.hatch,shape:"rect"})}}
-S.opt=Object.assign({},DEF_OPT,ld("mdn.opt2",{}));S.opt.yearColors=S.opt.yearColors||{};
+for(const t of S.lib)if(t.geom==="area"&&t.shape==="ellipse")t.shape="";
+if(!S.lib.find(t=>t.id==="crp2")){const d=DEF_LIB.find(t=>t.id==="crp2");const i=S.lib.findIndex(t=>t.id==="crp");S.lib.splice(i>=0?i+1:S.lib.length,0,JSON.parse(JSON.stringify(d)))}
+S.opt=Object.assign({},DEF_OPT,ld("mdn.opt2",{}));S.opt.memExtra=S.opt.memExtra||{bridge:[],tunnel:[]};S.opt.yearColors=S.opt.yearColors||{};
 S.recent=ld("mdn.recent2",[]);
 if(!S.lib.find(t=>t.id==="step")){const d=DEF_LIB.find(t=>t.id==="step");const i=S.lib.findIndex(t=>t.id==="dfm");S.lib.splice(i>=0?i+1:S.lib.length,0,JSON.parse(JSON.stringify(d)))}
 const saveOpt=()=>sv("mdn.opt2",S.opt);
 const yearColor=yr=>S.opt.yearColors[String(yr||"").slice(-4)]||S.opt.stOld;
-const itemColor=it=>it.st==="rep"?S.opt.stRep:it.st==="old"?yearColor(it.yr):S.opt.stNew;
-const exColor=(j,yr)=>j==="rep"?S.opt.stRep:j==="del"?S.opt.stDel:j==="prog"?S.opt.stNew:yearColor(yr);
-const stName=s=>(STATUS.find(x=>x[0]===s)||STATUS[0])[1];
+const itemColor=it=>it.st==="chg"?(S.opt.stChg||"#f08c00"):it.st==="rep"?S.opt.stRep:it.st==="old"?yearColor(it.yr):S.opt.stNew;
+const exColor=(j,yr)=>j==="rep"?S.opt.stRep:j==="del"?S.opt.stDel:j==="prog"?(S.opt.stChg||"#f08c00"):yearColor(yr);
+const stName=s=>s==="chg"?"변경":(STATUS.find(x=>x[0]===s)||STATUS[0])[1];
 const jName=j=>(JUDGE.find(x=>x[0]===j)||JUDGE[0])[1];
 function libById(id){if(id&&id.startsWith("ex:")){const g=id.slice(3);return{id,name:"",short:"",geom:g,unit:UNIT[g],hatch:g==="line"?"plain":g==="point"?"x":"none",widths:""}}
   return S.lib.find(t=>t.id===id)||DEF_LIB.find(t=>t.id===id)||{id,name:id,short:id,geom:"area",unit:"㎡",hatch:"none",widths:""}}
+function kindNow(){const k=(S.cur&&S.cur.kind)||(S.doc&&S.doc.kind)||"";return k==="bridge"||k==="tunnel"?k:""}
+function setKind(k){if(S.cur){S.cur.kind=k;try{libSave()}catch(e){}}S.doc.kind=k;autosave()}
+function memList(k){k=k||kindNow();if(!k)return[];const ex=(S.opt.memExtra&&S.opt.memExtra[k])||[];return MEMBERS[k].concat(ex.filter(x=>!MEMBERS[k].includes(x)))}
+function gradeInfo(it){const k=kindNow()||"tunnel";const nm=typeOf(it).name||"";for(const g of GRADES[k])if(g[0].test(nm))return{title:g[1],d:g[2]};return null}
 function page(n=S.n){const p=S.doc.pages[n]||(S.doc.pages[n]={label:"",scale:0,items:[]});p.exj=p.exj||{};p.exq=p.exq||{};p.exp=p.exp||{};return p}
 
 /* ---------- utils ---------- */
@@ -678,9 +723,9 @@ function anchorOf(it){const g=libById(it.type).geom;if(g==="line")return it.pts[
 function labelLines(it){const t=typeOf(it);const top=[it.no?String(it.no):"",S.opt.showName?(t.short||t.name):""].filter(Boolean).join(" ");return top?[top,qtyText(it)]:[qtyText(it)]}
 /* label = ⓝ(적출년도 색 동그라미) + 손상명 / 수량 / ['26,상] / #사진 */
 const FSb=()=>(S.doc&&S.doc.fs)||S.opt.fs;
-function tagText(it){const tg=S.doc&&S.doc.tag;if(!tg||it.st!=="new")return"";return `['${String(it.yr||S.opt.curYear).slice(-2)},${tg}]`}
+function tagText(it){const tg=S.doc&&S.doc.tag;const yy=String(it.yr||S.opt.curYear).slice(-2);if(it.st==="chg")return tg?`['${yy},${tg} 변경]`:`['${yy} 변경]`;if(!tg||it.st!=="new")return"";return `['${yy},${tg}]`}
 function cwSuffix(it){return it.cw!==""&&it.cw!=null&&libById(it.type).geom!=="line"?`(cw=${fmt(it.cw)}㎜)`:""}
-function labelLayout(it,measure){const fs=FSb()*(it.ls||1),t=typeOf(it),W=measure||txtW;const name=(S.opt.showName?(t.short||t.name)+cwSuffix(it):"")+(it.prog?`(${it.prog}번 진행분)`:""),q=qtyText(it),no=it.no?String(it.no):"";
+function labelLayout(it,measure){const fs=FSb()*(it.ls||1),t=typeOf(it),W=measure||txtW;const name=(S.opt.showName?(t.short||t.name)+cwSuffix(it)+(it.gr?`(${it.gr})`:""):"")+(it.prog&&!it.chg?`(${it.prog}번 진행분)`:""),q=qtyText(it),no=it.no?String(it.no):"";
   const x=it.lp[0],yq=it.lp[1],y1=yq-fs*1.15,r=fs*.62,hasTop=!!name;
   const tx=no?x+2*r+fs*.25:x;const lines=[];
   if(hasTop)lines.push({t:name,x:tx,y:y1,size:fs*.85,bold:false});
@@ -697,7 +742,7 @@ function labelBox(it){return labelLayout(it).box}
 function swatchSVG(t,col){const c=col||S.opt.stNew;const k=1.45;let it;
   if(t.geom==="line")it={type:t.id,pts:t.hatch==="rebar"||t.hatch==="rebarcor"?[[5,10],[25,10]]:[[3,14],[9,7],[15,12],[21,6],[27,9]],w:/이상/.test(t.name)?"0.3":""};
   else if(t.geom==="point")it={type:t.id,pts:[[15,10]]};
-  else it={type:t.id,pts:t.shape==="ellipse"?ellipsePoly({x:3,y:3,w:24,h:14}):[[2,2],[28,2],[28,18],[2,18]]};
+  else it={type:t.id,pts:[[2,2],[28,2],[28,18],[2,18]]};
   return `<svg viewBox="0 0 30 20">${primsSVG(itemPrims(it,k),c)}</svg>`}
 
 /* ---------- overlay rendering ---------- */
@@ -715,7 +760,7 @@ function itemSVG(it){
   if(S.rs&&S.rs.id===it.id){const hs=7/S.z;g+=`<rect x="${(lb.x-1).toFixed(2)}" y="${(lb.y-1).toFixed(2)}" width="${(lb.w+2).toFixed(2)}" height="${(lb.h+2).toFixed(2)}" fill="rgba(42,111,219,.06)" stroke="#2a6fdb" stroke-width="${(1.2/S.z).toFixed(2)}"/><rect x="${(lb.x+lb.w+1-hs/2).toFixed(2)}" y="${(lb.y+lb.h+1-hs/2).toFixed(2)}" width="${hs.toFixed(2)}" height="${hs.toFixed(2)}" fill="#2a6fdb"/>`}
   else if(S.sel===it.id){const b=bbox(it.pts),p=2;g+=`<rect x="${lb.x-1}" y="${lb.y-1}" width="${lb.w+2}" height="${lb.h+2}" fill="none" stroke="#2a6fdb" stroke-width=".5" stroke-dasharray="1.5 1"/><rect x="${b.x-p}" y="${b.y-p}" width="${b.w+p*2}" height="${b.h+p*2}" fill="none" stroke="#2a6fdb" stroke-width=".6" stroke-dasharray="2 1.2"/>`}
   return g+"</g>"}
-function incItemOf(n,no){const p=S.doc.pages[n];return p?p.items.find(i=>i.kind==="damage"&&i.prog===no):null}
+function incItemOf(n,no){const p=S.doc.pages[n];return p?p.items.find(i=>i.kind==="damage"&&(i.chg===no||i.prog===no)):null}
 function exTag(n,row){const j=exJ(n,row);if(j==="keep"||j==="prog")return"";if(j==="prog"){const q=page(n).exq[row.no];const inc=incItemOf(n,row.no);return "진행 "+rowQtyText(row,q)+(inc?` → ${inc.no}`:"")}return jName(j)}
 /* 기존 손상 사진번호: 기존 라벨(번호·손상명·수량·표기) 바로 아래, 끌어서 옮길 수 있음 */
 function exPhotoBox(n,row){const p=S.doc.pages[n];const ph=p&&p.exp&&p.exp[row.no];if(!ph)return null;const lb=S.ex[n]&&S.ex[n].labels[row.no];if(!lb)return null;
@@ -833,11 +878,11 @@ function endDraw(){clearTimeout(lpT);const d=draw;draw=null;if(!d)return;if(d.rs
   else if(t==="damage"){const ty=libById(S.armed);let pts;
     if(ty.geom==="point")pts=[d.pts[0]];
     else if(ty.geom==="line"){if(!d.moved)return;pts=round(rdp(d.pts,tol))}
-    else{if(!d.moved){const s=6;const[x,y]=d.pts[0];pts=[[x-s,y-s],[x+s,y-s],[x+s,y+s],[x-s,y+s]]}
-      else if(isClosed(d.pts)){if(ty.shape==="rect"){const b=bbox(d.pts);pts=[[b.x,b.y],[b.x2,b.y],[b.x2,b.y2],[b.x,b.y2]]}else{pts=rdp(d.pts,tol);if(dist(pts[0],pts[pts.length-1])<.01)pts.pop()}}
-      else{const b=bbox([d.pts[0],d.pts[d.pts.length-1]]);if(b.w<1||b.h<1)return;pts=ty.shape==="ellipse"?ellipsePoly(b):[[b.x,b.y],[b.x2,b.y],[b.x2,b.y2],[b.x,b.y2]]}
-      if(!d.moved&&ty.shape==="ellipse")pts=ellipsePoly(bbox(pts));
-      pts=round(pts)}
+    else{/* 면 손상은 항상 네모(사각 테두리) */let b;
+      if(!d.moved){const s=6;const[x,y]=d.pts[0];b={x:x-s,y:y-s,x2:x+s,y2:y+s}}
+      else if(isClosed(d.pts))b=bbox(d.pts);
+      else{b=bbox([d.pts[0],d.pts[d.pts.length-1]]);if(b.w<1||b.h<1)return}
+      pts=round([[b.x,b.y],[b.x2,b.y],[b.x2,b.y2],[b.x,b.y2]])}
     newDamage(ty,pts)}
   else if(t==="scale"){if(!d.moved)return;askScale(d.pts[0],d.pts[d.pts.length-1])}
   else if(t==="erase"){if(d.erased){redraw();autosave()}}
@@ -852,17 +897,46 @@ function eraseAt(p){const hit=hitTest(p,true);if(!hit)return;if(!draw.erased){sn
 
 /* ---------- damage menu (grouped by unit) ---------- */
 const dmenu=$("#dmenu");let menuAnchor=null,menuMode="new";
-function openMenu(cx,cy,anchor,mode="new"){menuAnchor=anchor;menuMode=mode;let h="";let k=0;
+let menuXY=[0,0];
+function placeMenu(cx,cy){dmenu.hidden=false;const w=dmenu.offsetWidth,hh=dmenu.offsetHeight;
+  dmenu.style.left=Math.max(8,Math.min(cx+12,innerWidth-w-8))+"px";dmenu.style.top=Math.max(8,Math.min(cy-20,innerHeight-hh-8))+"px"}
+function memPickerHTML(){const k=kindNow();let h=`<div class="mh"><span>부재위치 먼저 선택</span><em>다음 손상부터 자동</em></div>
+  <div class="kseg"><button data-kind="bridge" class="${k==="bridge"?"on":""}">교량</button><button data-kind="tunnel" class="${k==="tunnel"?"on":""}">터널</button></div>`;
+  if(!k)return h+`<p class="mhelp">이 구조물이 교량인지 터널인지 먼저 고르세요. 한 번 고르면 구조물에 저장됩니다.</p>`;
+  memList(k).forEach((m,i)=>h+=`<button data-mem="${esc(m)}" class="${S.doc.mem===m?"on":""}"><span class="k">${CIRC[i]||i+1}</span><span>${esc(m)}</span></button>`);
+  return h+`<button data-memadd="1"><span class="k">${CIRC[memList(k).length]||"+"}</span><span>＋ 부재 직접 추가</span></button>`}
+function openMenu(cx,cy,anchor,mode="new",forceMem){menuAnchor=anchor;menuMode=mode;menuXY=[cx,cy];
+  if(mode==="new"&&(forceMem||!S.doc.mem)){dmenu.innerHTML=memPickerHTML();placeMenu(cx,cy);return}
+  let h="";let k=0;
+  if(mode==="new")h+=`<div class="mh memh"><span>부재 <b>${esc(S.doc.mem)}</b> · ${kindNow()==="bridge"?"교량":"터널"}</span><button data-memchg="1">변경</button></div>`;
   const rec=S.recent.map(id=>S.lib.find(t=>t.id===id)).filter(Boolean).slice(0,3);
   if(rec.length&&mode==="new"){h+=`<div class="mh">최근</div>`;rec.forEach(t=>h+=menuBtn(t,""))}
-  for(const g of UNITS){const ts=S.lib.filter(t=>(t.unit||UNIT[t.geom])===g);if(!ts.length)continue;
+  for(const g of UNITS){const ts=S.lib.filter(t=>!t.custom&&(t.unit||UNIT[t.geom])===g);if(!ts.length)continue;
     h+=`<div class="mh"><span>${UNIT_TITLE[g]}</span><em>${g}</em></div>`;ts.forEach(t=>{k++;h+=menuBtn(t,k<=9?String(k):"")})}
-  dmenu.innerHTML=h;dmenu.hidden=false;const w=dmenu.offsetWidth,hh=dmenu.offsetHeight;
-  dmenu.style.left=Math.max(8,Math.min(cx+12,innerWidth-w-8))+"px";dmenu.style.top=Math.max(8,Math.min(cy-20,innerHeight-hh-8))+"px"}
-function menuOrder(){return UNITS.flatMap(g=>S.lib.filter(t=>(t.unit||UNIT[t.geom])===g))}
+  const cu=S.lib.filter(t=>t.custom);h+=`<div class="mh"><span>신규손상 (직접 등록)</span><em>${cu.length}</em></div>`;cu.forEach(t=>h+=menuBtn(t,""));
+  h+=`<button data-newdmg="1"><span class="k">＋</span><span>신규손상 이름 등록</span></button>`;
+  dmenu.innerHTML=h;placeMenu(cx,cy)}
+function menuOrder(){return UNITS.flatMap(g=>S.lib.filter(t=>!t.custom&&(t.unit||UNIT[t.geom])===g))}
+function textModal(title,label,ph,onOk,extra){modal(title,`<label class="fld2">${label}<input id="tmIn" placeholder="${esc(ph||"")}"></label>${extra||""}<div class="mact"><button class="btn" id="tmCx">취소</button><button class="btn primary" id="tmOk">등록</button></div>`);
+  const inp=$("#tmIn");setTimeout(()=>inp.focus(),60);const ok=()=>{const v=inp.value.trim();if(!v)return toast("이름을 입력하세요");if(onOk(v)!==false)closeModal()};
+  $("#tmOk").onclick=ok;$("#tmCx").onclick=closeModal;inp.onkeydown=e=>{if(e.key==="Enter")ok()}}
+function addMember(after){const k=kindNow();if(!k)return toast("교량/터널을 먼저 고르세요");
+  textModal(`부재 직접 추가 · ${k==="bridge"?"교량":"터널"}`,"부재 이름","예: 중앙분리대",v=>{const ex=S.opt.memExtra[k]=S.opt.memExtra[k]||[];if(!MEMBERS[k].includes(v)&&!ex.includes(v))ex.push(v);saveOpt();S.doc.mem=v;autosave();if(after)after(v)})}
+function registerDamage(){let u="㎡";
+  textModal("신규손상 이름 등록","손상 이름 (물량표 명칭)","예: 들뜸",v=>{if(S.lib.find(t=>t.name===v)){toast("같은 이름이 이미 있습니다");return false}
+    const geom=u==="m"?"line":u==="EA"?"point":"area";const t={id:"u"+uid(),name:v,short:v,geom,unit:u,hatch:geom==="area"?"grid":geom==="line"?"plain":"x",widths:geom==="line"?"0.1,0.2,0.3":"",shape:geom==="area"?"rect":"",custom:true};
+    S.lib.push(t);sv("mdn.lib3",S.lib);setTimeout(()=>chooseType(t.id),0)},
+    `<div class="fld2">단위 <span class="st" id="tmU">${UNITS.map(x=>`<button class="btn ${x===u?"on":""}" data-u="${x}">${x}</button>`).join("")}</span></div><p class="help">㎡는 박리·박락 해치(격자) 네모로 그려집니다. m는 선, EA는 점입니다. 등록한 손상은 메뉴 맨 아래 '신규손상'에 나오고, 단위는 수량 입력 때 바꿀 수 있습니다.</p>`);
+  $("#tmU").onclick=e=>{const b=e.target.closest("[data-u]");if(!b)return;u=b.dataset.u;$("#tmU").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))}}
 function menuBtn(t,k){return `<button data-t="${t.id}"><span class="k">${k}</span>${swatchSVG(t)}<span>${esc(t.name)}</span></button>`}
 function hideMenu(){dmenu.hidden=true}
-dmenu.addEventListener("click",e=>{const b=e.target.closest("button[data-t]");if(!b)return;chooseType(b.dataset.t)});
+dmenu.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const D=b.dataset;
+  if(D.kind){setKind(D.kind);dmenu.innerHTML=memPickerHTML();placeMenu(...menuXY);return}
+  if(D.mem!=null){S.doc.mem=D.mem;autosave();openMenu(menuXY[0],menuXY[1],menuAnchor,"new");return}
+  if(D.memchg){openMenu(menuXY[0],menuXY[1],menuAnchor,"new",true);return}
+  if(D.memadd){hideMenu();addMember(()=>openMenu(menuXY[0],menuXY[1],menuAnchor,"new"));return}
+  if(D.newdmg){hideMenu();registerDamage();return}
+  if(D.t)chooseType(D.t)});
 function chooseType(id){hideMenu();const t=libById(id);S.recent=[id,...S.recent.filter(x=>x!==id)].slice(0,5);sv("mdn.recent2",S.recent);
   if(menuMode==="change"){const it=page().items.find(i=>i.id===S.sel);if(!it)return;const ot=libById(it.type);
     if(ot.geom!==t.geom)return toast(`그리는 방식이 다른 손상(${GEOMS[ot.geom]}→${GEOMS[t.geom]})으로는 바꿀 수 없습니다`);snap();it.type=id;redraw();autosave();return}
@@ -897,7 +971,9 @@ function newDamage(t,pts){const pg=page();const fs=FSb();
   const U=t.unit||UNIT[t.geom];
   if(U==="m"){const ws=(t.widths||"").split(",").map(s=>s.trim()).filter(Boolean);it.w=ws.length?ws[0]:"";if(sc&&t.geom==="line")it.L=fmt(Math.max(.1,Math.round(realLen(pts,sc)*10)/10))}
   if(U==="㎡"&&t.geom==="area"&&sc){const b=bbox(pts);it.a=fmt(Math.max(.1,Math.round(b.w*sc[0]*10)/10));it.b=fmt(Math.max(.1,Math.round(b.h*sc[1]*10)/10))}
-  if(INC){it.prog=INC.no;if(INC.tname)it.tname=INC.tname;for(const k of["w","L","a","b","n"])if(INC.inc[k]!=null&&INC.inc[k]!=="")it[k]=INC.inc[k]}
+  it.mem=S.doc.mem||"";
+  if(INC&&INC.chg){it.no=INC.no;it.chg=INC.no;it.st="chg";if(INC.tname)it.tname=INC.tname;for(const k of["w","L","a","b","n"])if(INC.q[k]!=null&&INC.q[k]!=="")it[k]=INC.q[k]}
+  else if(INC){it.prog=INC.no;if(INC.tname)it.tname=INC.tname;for(const k of["w","L","a","b","n"])if(INC.inc[k]!=null&&INC.inc[k]!=="")it[k]=INC.inc[k]}
   const an=anchorOf(it);it.lp=[r2(an[0]+fs*.5),r2(an[1]-fs*.4)];
   if(lastPhoto()&&S.opt.autoPhoto!==false)it.ph=String(lastPhoto()+1);
   liveSet(itemSVG(it));openQty(it,"new");if(it.ph){Q.phAuto=it.ph;renderQty()}}
@@ -906,44 +982,50 @@ function fieldsOf(it){const g=it.kind==="exq"?libById(it.type).geom:({m:"line","
   if(g==="line")f=[["w",T.cw||/균열/.test(T.name||"")?"Cw 폭 (mm)":"폭 (mm)"],["L","길이 (m)"]];else if(g==="area")f=[["a","가로 (m)"],["b","세로 (m)"]];else f=[];
   if(T.cw&&g!=="line")f.push(["cw","Cw 균열폭 (mm)"]);if(T.depth)f.push(["T","깊이 T (mm)"]);
   f.push(["n",g==="point"?"개소 (EA)":"개소"]);
-  if(it.kind==="damage"&&it.st!=="new")f=[["yr","적출년도"]].concat(f);if(it.kind==="damage"||it.kind==="photo")f=it.kind==="photo"?[["ph","사진번호 (#)"]]:f.concat([["ph","사진번호 #"]]);return f}
+  if(it.kind==="damage"){f=[["mem","부재위치"]].concat(f);f.push(["gr","상태등급"])}
+  if(it.kind==="damage"&&it.st!=="new"&&it.st!=="chg")f=[["yr","적출년도"]].concat(f);if(it.kind==="damage"||it.kind==="photo")f=it.kind==="photo"?[["ph","사진번호 (#)"]]:f.concat([["ph","사진번호 #"]]);return f}
 function openQty(it,mode,row){Q={it,mode,row,f:fieldsOf(it)[0][0],orig:JSON.stringify(it),fresh:true,pre:pstate()};
   const u=unitOf(it);if(mode==="new")Q.f=u==="m"?(libById(it.type).widths?"w":"L"):u==="㎡"?"a":"n";renderQty();qty.hidden=false}
 function renderQty(){const it=Q.it,t=typeOf(it),isEx=Q.mode==="ex";
   const flds=fieldsOf(it);if(!flds.find(f=>f[0]===Q.f))Q.f=flds[0][0];
-  let chips=Q.f==="cw"?["0.1","0.2","0.3","0.5"]:Q.f==="T"?["5","10","20","30","50"]:Q.f==="ph"?phChips().concat(["없음"]):Q.f==="w"?(t.widths||"0.1,0.2,0.3").split(",").map(s=>s.trim()).filter(Boolean):Q.f==="n"?["1","2","3","4","5","6"]:Q.f==="yr"?knownYears():GEN_CHIPS.map(String);
+  let chips=Q.f==="mem"?memList().concat(["＋ 직접 추가"]):Q.f==="gr"?["a","b","c","d","e","없음"]:Q.f==="cw"?["0.1","0.2","0.3","0.5"]:Q.f==="T"?["5","10","20","30","50"]:Q.f==="ph"?phChips().concat(["없음"]):Q.f==="w"?(t.widths||"0.1,0.2,0.3").split(",").map(s=>s.trim()).filter(Boolean):Q.f==="n"?["1","2","3","4","5","6"]:Q.f==="yr"?knownYears():GEN_CHIPS.map(String);
   const isPh=Q.mode==="photo";
-  const title=isPh?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">기존 손상 사진번호</small>`:isEx?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">${esc(Q.row.yr)} 적출 · 진행 규모 입력</small>`:`${it.no?it.no+". ":""}${esc(t.name)}`;
+  const title=isPh?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">기존 손상 사진번호</small>`:isEx?`${Q.row.no}. ${esc(Q.row.name)} <small style="color:var(--muted);font-weight:400">${esc(Q.row.yr)} 적출 · 변경 후 전체 물량 입력</small>`:`${it.no?it.no+". ":""}${esc(t.name)}`;
   const qv=isPh?{v:"",u:""}:isEx?rowQty(Q.row,it):qtyValue(it),qt=isPh?"":isEx?rowQtyText(Q.row,it):qtyText(it);
-  qty.innerHTML=`<div class="qh"><h4>${title}</h4>${isEx||isPh?"":`<div class="st">${STATUS.map(([k,n])=>{const c=k==="old"?yearColor(it.yr):k==="rep"?S.opt.stRep:S.opt.stNew;return `<button data-st="${k}" class="${it.st===k?"on":""}" style="${it.st===k?`background:${c}`:`color:${c}`}">${n}</button>`}).join("")}</div>`}</div>
-  ${!isEx&&!isPh?`<div class="yrrow">${it.st==="new"?`적출년도 <b>${esc(it.yr||S.opt.curYear)}</b> (이번 조사)`:""}<span class="sp" style="flex:1"></span>단위 <span class="st">${UNITS.map(u=>`<button data-u="${u}" class="${unitOf(it)===u?"on":""}" style="${unitOf(it)===u?"background:var(--ink);color:var(--chrome)":""}">${u}</button>`).join("")}</span></div>`:""}
+  qty.innerHTML=`<div class="qh"><h4>${title}</h4>${isEx||isPh?"":it.st==="chg"?`<div class="st"><button class="on" style="background:${S.opt.stChg||"#f08c00"}">변경 · 기존 ${it.chg}번</button></div>`:`<div class="st">${STATUS.map(([k,n])=>{const c=k==="old"?yearColor(it.yr):k==="rep"?S.opt.stRep:S.opt.stNew;return `<button data-st="${k}" class="${it.st===k?"on":""}" style="${it.st===k?`background:${c}`:`color:${c}`}">${n}</button>`}).join("")}</div>`}</div>
+  ${!isEx&&!isPh?`<div class="yrrow">${it.st==="new"?`적출년도 <b>${esc(it.yr||S.opt.curYear)}</b> (이번 조사)`:it.st==="chg"?`<b>${esc(tagText(it))}</b> · 번호 ${it.chg} 그대로`:""}<span class="sp" style="flex:1"></span>단위 <span class="st">${UNITS.map(u=>`<button data-u="${u}" class="${unitOf(it)===u?"on":""}" style="${unitOf(it)===u?"background:var(--ink);color:var(--chrome)":""}">${u}</button>`).join("")}</span></div>`:""}
   <div class="fields">${flds.map(([k,l])=>{const auto=k==="ph"&&Q.phAuto&&it.ph===Q.phAuto;return `<div class="fld ${Q.f===k?"on":""}" data-f="${k}"><small>${l}${auto?` <b style="color:var(--focus)">자동 제안 · 다르면 눌러서 수정</b>`:""}</small><span ${auto?'style="color:var(--focus)"':""}>${esc(String(it[k]??""))}</span></div>`}).join("")}</div>
   <div class="chips">${chips.map(c=>`<button data-c="${c}">${c}</button>`).join("")}<span class="sp"></span><span class="prev">표기 <b>${esc(qt)}</b> · 물량 ${qv.v}${qv.u}${it.ph?` · <b>${esc(phText(it.ph))}</b>`:""}</span></div>
+  ${Q.f==="gr"?gradeBox(it):Q.f==="mem"&&!kindNow()?`<p class="help" style="margin:4px 2px">교량/터널 종류가 정해지지 않았습니다. 손상을 길게 눌러 메뉴 위쪽에서 고르세요.</p>`:""}
   <div class="pad">${["7","8","9","⌫","4","5","6","C","1","2","3","→","0",".","취소","확인"].map(k=>`<button data-k="${k}" class="${k==="확인"?"ok":k==="취소"||k==="→"||k==="C"?"cx":""}">${k==="."&&Q.f==="ph"?",":k}</button>`).join("")}</div>`;
   if(Q.mode==="new")liveSet(itemSVG(it));else redraw()}
 qty.addEventListener("click",e=>{const b=e.target.closest("button,.fld");if(!b||!Q)return;const it=Q.it;
   if(b.dataset.u){const t=libById(it.type);it.u=b.dataset.u===(t.unit||UNIT[t.geom])?"":b.dataset.u;Q.f=fieldsOf(it)[0][0];if(Q.f==="yr")Q.f=fieldsOf(it)[1][0];Q.fresh=true;return renderQty()}
   if(b.dataset.st){it.st=b.dataset.st;if(it.st==="new")it.yr=String(S.opt.curYear);else if(String(it.yr)===String(S.opt.curYear)){const ys=knownYears().filter(y=>y!==String(S.opt.curYear));it.yr=ys.length?ys[ys.length-1]:""}return renderQty()}
   if(b.dataset.f){Q.f=b.dataset.f;Q.fresh=true;return renderQty()}
+  if(b.dataset.c&&Q.f==="mem"){const v=b.dataset.c;if(v==="＋ 직접 추가"){addMember(m=>{if(Q){Q.it.mem=m;renderQty()}});return}it.mem=v;S.doc.mem=v;Q.fresh=true;return renderQty()}
+  if(b.dataset.c&&Q.f==="gr"){it.gr=b.dataset.c==="없음"?"":b.dataset.c;Q.fresh=true;return renderQty()}
   if(b.dataset.c){if(Q.f==="ph"){const v=b.dataset.c==="없음"?"":b.dataset.c;it.ph=Q.fresh||!it.ph||!v?v:it.ph+","+v;Q.fresh=false;return renderQty()}it[Q.f]=b.dataset.c;Q.fresh=false;nextField();return renderQty()}
   const k=b.dataset.k;if(!k)return;let v=String(it[Q.f]??"");
   if(k==="확인")return commitQty();if(k==="취소")return cancelQty();
   if(k==="→"){nextField(true);return renderQty()}
+  if(Q.f==="mem"||Q.f==="gr"){if(k==="⌫"||k==="C"){it[Q.f]="";renderQty()}return}
   if(k==="⌫")v=v.slice(0,-1);else if(k==="C")v="";else if(Q.f==="ph"){if(Q.fresh)v="";if(k==="."){if(!v||v.endsWith(","))return;v+=","}else v+=k}
   else{if(Q.fresh)v="";if(k==="."&&(v.includes(".")||Q.f==="yr"||Q.f==="n"))return;v=(v===""&&k===".")?"0.":v+k}
   Q.fresh=false;it[Q.f]=Q.f==="n"?(v===""?"":parseInt(v)||""):v;renderQty()});
+function gradeBox(it){const G=gradeInfo(it);if(!G)return `<p class="help" style="margin:4px 2px">이 손상은 세부지침 요약 기준이 없습니다. 판단한 등급을 고르세요.</p>`;
+  return `<div class="grd"><small>${esc(G.title)}${kindNow()?"":" · 종류 미지정(터널 기준)"}</small>${G.d.map((d,i)=>{const g="abcde"[i];return `<button data-c="${g}" class="${it.gr===g?"on":""}"><b>${g}</b> ${esc(d)}</button>`}).join("")}</div>`}
 function nextField(force){const f=fieldsOf(Q.it).map(x=>x[0]);const i=f.indexOf(Q.f);if(force||i<f.length-1){Q.f=f[(i+1)%f.length];Q.fresh=true}}
 function commitQty(){const it=Q.it;if(it.ph!=null)it.ph=String(it.ph).replace(/,+$/,"");notePhoto(it.ph);
   if(Q.mode==="photo"){(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[];const p=page();if(it.ph)p.exp[Q.row.no]=it.ph;else delete p.exp[Q.row.no];qty.hidden=true;Q=null;redraw();autosave();return}
   if(it.n===""||!it.n)it.n=1;
   for(const k of["w","L","a","b","cw","T"])if(it[k]!==""&&it[k]!=null)it[k]=fmt(parseFloat(it[k]));
   const p=page();if(Q.mode!=="ex"){const fitted=fitToScale(it,Q.mode==="new");if(!fitted&&S.opt.toScale&&!scaleXY()&&libById(it.type).geom!=="point"&&unitOf(it)!=="EA"&&!S.scaleHinted){S.scaleHinted=true;toast("축척을 설정하면 입력한 크기대로 도형이 자동으로 맞춰집니다 (상단 축척 도구)",4000)}}
-  if(Q.mode==="new"){snap();p.items.push(it);if(!S.opt.repeat||it.prog)disarm()}
+  if(Q.mode==="new"){snap();p.items.push(it);if(it.mem)S.doc.mem=it.mem;if(!S.opt.repeat||it.prog||it.chg)disarm()}
   else if(Q.mode==="ex"){(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[];p.exq[Q.row.no]={w:it.w,L:it.L,a:it.a,b:it.b,n:it.n};p.exj[Q.row.no]="prog";
-    const row=Q.row,inc=incOf(row,p.exq[row.no]);qty.hidden=true;Q=null;liveSet("");redraw();autosave();
-    if(!inc){toast("규모가 늘지 않아 진행분은 추가하지 않았습니다");return}
-    if(incItemOf(S.n,row.no)){toast(`이미 ${row.no}번 진행분이 있습니다. 진행분 손상을 선택해 수량을 고치세요`,4000);return}
-    startInc(row,inc);return}
+    const row=Q.row,q=p.exq[row.no];qty.hidden=true;Q=null;liveSet("");
+    const ci=incItemOf(S.n,row.no);if(ci&&ci.chg){for(const k of["w","L","a","b","n"])if(q[k]!=null&&q[k]!=="")ci[k]=q[k];fitToScale(ci,false);redraw();autosave();toast(`${row.no}번 변경 물량을 고쳤습니다`);return}
+    redraw();autosave();startChg(row,q);return}
   else{(S.undo[S.n]=S.undo[S.n]||[]).push(Q.pre);S.redo[S.n]=[]}
   qty.hidden=true;Q=null;liveSet("");redraw();autosave()}
 function openExPhoto(row){const cur=page().exp[row.no]||"";const it={kind:"photo",type:"ex:point",ph:cur||(lastPhoto()?String(lastPhoto()+1):""),n:1};openQty(it,"photo",row);Q.f="ph";if(!cur&&it.ph)Q.phAuto=it.ph;renderQty()}
@@ -965,6 +1047,12 @@ function incOf(row,q){const g=geomOfRow(row);const n0=+row.n||1,n1=+q.n||n0;
     if(Math.abs(b1-b0)<1e-9)return{a:fmt(r2(a1-a0)),b:fmt(b1),n:n1};
     return{a:fmt(a1),b:fmt(Math.max(.01,r2(dA/a1))),n:n1}}
   return n1>n0?{n:n1-n0}:null}
+function startChg(row,q){const g=geomOfRow(row);const t=matchType(row.name,g);const id=t?t.id:"ex:"+g;
+  setToolQuiet("pen");S.selEx=null;S.armedInc={no:row.no,chg:true,q,tname:t?"":row.name};const R=exRing(S.n,row);
+  const qs=g==="line"?(q.w?`${q.w}/${q.L}`:`L=${q.L}`):g==="area"?`${q.a}X${q.b}`:`${q.n}EA`;
+  if(g==="point"){const p0=R?[r2(R.cx+R.r*2.2),r2(R.cy+R.r*3.2)]:[S.W/2,S.H/2];menuAnchor=p0;newDamage(t||libById(id),[p0]);return}
+  if(R)centerOn(R.cx,R.cy,2.4);
+  arm(id,`${row.no}번 변경 ${qs}`,`${row.no}번 ${row.name}: 변경된 손상 범위를 그리세요. 번호 ${row.no} 그대로, '${tagText({st:"chg"})}'로 표기됩니다`)}
 function matchType(name,g){const nm=String(name).replace(/\s+/g,"");return S.lib.find(t=>t.geom===g&&(t.name.replace(/\s+/g,"")===nm||(t.short||"").replace(/\s+/g,"")===nm))||null}
 function startInc(row,inc){const g=geomOfRow(row);const t=matchType(row.name,g);const id=t?t.id:"ex:"+g;
   setToolQuiet("pen");S.selEx=null;S.armedInc={no:row.no,inc,tname:t?"":row.name};const R=exRing(S.n,row);
@@ -996,7 +1084,7 @@ selbar.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)ret
     if(r==="cx"){it.ls=S.rs.ls0;if(it.ls===1)delete it.ls;S.rs=null;redraw();return}}
   const it=selIt();if(!it)return;const a=b.dataset.a;
   if(a==="no"){numPad(`손상 번호 · ${typeOf(it).name}`,String(it.no||""),v=>{const n=parseInt(v);if(!(n>0))return toast("번호를 입력하세요");
-    const dup=page().items.some(x=>x!==it&&x.kind==="damage"&&x.no===n)||exRows(S.n).some(r=>r.no===n);snap();it.no=n;redraw();autosave();if(dup)toast(`${n}번이 이 페이지에 이미 있습니다. 확인해 주세요`,3500)});return}
+    const dup=!it.chg&&(page().items.some(x=>x!==it&&x.kind==="damage"&&x.no===n)||exRows(S.n).some(r=>r.no===n));snap();it.no=n;redraw();autosave();if(dup)toast(`${n}번이 이 페이지에 이미 있습니다. 확인해 주세요`,3500)});return}
   if(a==="rs"){snap();S.rs={id:it.id,ls0:it.ls||1};setToolQuiet("select");S.sel=it.id;redraw();toast("파란 네모 모서리를 끌거나 −/+로 크기를 맞추세요",3500);return}
   if(a==="edit")openQty(it,"edit");
   if(a==="type"){const r=b.getBoundingClientRect();openMenu(r.left,r.bottom+6,null,"change")}
@@ -1105,10 +1193,10 @@ function renderPanel(){if($("#panel").hidden)return;const pages=S.panelAll?pages
   for(const n of pages){const dr=drawnRows(n),er=exRows(n);if(!dr.length&&!er.length&&S.panelAll)continue;
     if(S.panelAll)h+=`<div class="pgh" data-pg="${n}">p.${n} ${esc(pageLabel(n))}</div>`;
     if(dr.length){if(!S.panelAll)h+=`<div class="sec"><span>이번 조사 기입</span><span>${dr.length}건</span></div>`;
-      for(const it of dr){const t=typeOf(it),c=itemColor(it);h+=`<div class="row ${it.id===S.sel?"sel":""}" data-pg="${n}" data-id="${it.id}"><span class="no">${it.no||""}</span><span class="nm"><b>${esc(t.name)}</b><small><span class="yr">${esc(it.yr||"")}</span>${esc(qtyText(it))} → ${qtyValue(it).v}${qtyValue(it).u}${it.prog?` · 기존 ${it.prog}번 진행분`:""}${it.by?` · ${esc(it.by)}`:""}${it.dup?` · <b style="color:var(--accent)">중복 의심</b>`:""}</small></span><span class="pill" style="background:${c}">${stName(it.st)}</span></div>`}}
+      for(const it of dr){const t=typeOf(it),c=itemColor(it);h+=`<div class="row ${it.id===S.sel?"sel":""}" data-pg="${n}" data-id="${it.id}"><span class="no">${it.no||""}</span><span class="nm"><b>${esc(t.name)}</b><small><span class="yr">${esc(it.yr||"")}</span>${esc(qtyText(it))} → ${qtyValue(it).v}${qtyValue(it).u}${it.chg?` · 기존 ${it.chg}번 변경`:it.prog?` · 기존 ${it.prog}번 진행분`:""}${it.mem?` · ${esc(it.mem)}`:""}${it.gr?` · 등급 ${it.gr}`:""}${it.by?` · ${esc(it.by)}`:""}${it.dup?` · <b style="color:var(--accent)">중복 의심</b>`:""}</small></span><span class="pill" style="background:${c}">${stName(it.st)}</span></div>`}}
     if(er.length){if(!S.panelAll)h+=`<div class="sec"><span>기존 손상 (${S.ex[n]&&S.ex[n].noTable?"도면 라벨에서 읽음":"도면 물량표"})</span><span>${er.length}건</span></div>`;
       for(const r of er){const j=exJ(n,r),ch=exChanged(n,r),c=exColor(j,r.yr);const q=S.doc.pages[n]&&S.doc.pages[n].exq&&S.doc.pages[n].exq[r.no];
-        h+=`<div class="row ${n===S.n&&r.no===S.selEx?"sel":""}" data-pg="${n}" data-ex="${r.no}"><span class="no">${r.no}</span><span class="nm"><b style="font-weight:500">${esc(r.name)}</b><small><span class="yr">${esc(r.yr)}</span>${esc(rowQtyText(r))} → ${rowQty(r).v}${rowQty(r).u}${q?` · 진행 ${esc(rowQtyText(r,q))}`:""}${S.ex[n].labels[r.no]?"":" · 도면 위치 못 찾음"}</small></span><span class="pill ${ch?"":"ghost"}" style="background:${c};color:${ch?"#fff":c}">${jName(j)}</span></div>`}}}
+        h+=`<div class="row ${n===S.n&&r.no===S.selEx?"sel":""}" data-pg="${n}" data-ex="${r.no}"><span class="no">${r.no}</span><span class="nm"><b style="font-weight:500">${esc(r.name)}</b><small><span class="yr">${esc(r.yr)}</span>${esc(rowQtyText(r))} → ${rowQty(r).v}${rowQty(r).u}${q?` · 변경 ${esc(rowQtyText(r,q))}`:""}${S.ex[n].labels[r.no]?"":" · 도면 위치 못 찾음"}</small></span><span class="pill ${ch?"":"ghost"}" style="background:${c};color:${ch?"#fff":c}">${jName(j)}</span></div>`}}}
   if(!h)h=`<div class="empty">펜으로 도면을 <b>길게 누르면</b> 손상 메뉴가 열립니다. 손상을 고르고 그린 뒤 수량을 입력하면 여기에 쌓입니다.<br><br>도면에 손상물량표가 있으면 기존 손상이 자동으로 읽혀서 여기에 나옵니다.</div>`;
   $("#list").innerHTML=h}
 $("#list").onclick=async e=>{const r=e.target.closest("[data-pg]");if(!r)return;const n=+r.dataset.pg;if(n!==S.n)await gotoPage(n);
@@ -1131,7 +1219,7 @@ function autosave(){if(S.isSample||!S.key)return;S.dirty=true;$("#dirty").hidden
 async function flushSave(){if(saveT){clearTimeout(saveT);await doSave()}}
 
 /* ---------- library: 용역 폴더 → 구조물 (PDF는 앱 안에 보관) ---------- */
-const LIB={folders:[],structs:[]};let curFolder=(()=>{try{return localStorage.getItem("mdn.curFolder")||"all"}catch(e){return"all"}})();
+const LIB={folders:[],structs:[]};let curKind=(()=>{try{return localStorage.getItem("mdn.curKind")||"all"}catch(e){return"all"}})();const kOK=x=>curKind==="all"||x.kind===curKind;let curFolder=(()=>{try{return localStorage.getItem("mdn.curFolder")||"all"}catch(e){return"all"}})();
 const KIND={bridge:"교량",tunnel:"터널",other:"기타"};
 const guessKind=n=>/터널|tunnel|갱구/i.test(n)?"tunnel":/교|bridge|고가|램프/i.test(n)?"bridge":"other";
 function kindSVG(k){if(k==="tunnel")return `<svg viewBox="0 0 26 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 15h24"/><path d="M5 15V9a8 7 0 0116 0v6"/><path d="M9 15v-5a4 3.5 0 018 0v5"/></svg>`;
@@ -1170,27 +1258,30 @@ function renderHome(){if(curFolder!=="all"&&!LIB.folders.find(f=>f.id===curFolde
   $("#hTitle").textContent=q?`'${$("#hSearch").value.trim()}' 검색`:F?F.name:"전체 구조물";
   $("#hCrumb").textContent=F?`용역 · 구조물 ${cnt(F.id)}개`:`용역 ${LIB.folders.length}개 · 구조물 ${LIB.structs.length}개`;
   let h="";const byName=(a,b)=>a.name.localeCompare(b.name,"ko",{numeric:true});
+  const kc=k=>LIB.structs.filter(x=>(!F||x.folderId===F.id)&&(k==="all"||x.kind===k)).length;
+  let tabs="";if(LIB.structs.length)tabs=`<div class="ktabs">${[["all","전체"],["bridge","교량"],["tunnel","터널"]].map(([k,v])=>`<button data-kf="${k}" class="${curKind===k?"on":""}">${k==="all"?"":kindSVG(k)}${v} <em>${kc(k)}</em></button>`).join("")}</div>`;
   if(!LIB.structs.length&&!F){h=`<div class="hempty"><h3>망도를 구조물별로 넣어 두세요</h3>
      <ol><li>왼쪽 <b>+ 새 용역</b>으로 폴더를 만듭니다 (예: 율현터널 7공구, 서울시 정밀점검)</li>
      <li><b>구조물 추가 (PDF)</b>로 탭에 받아 둔 기존 망도 PDF를 고릅니다. 여러 개를 한 번에 골라도 됩니다</li>
      <li>현장에서는 목록에서 구조물을 눌러 바로 기입합니다. PDF는 앱 안에 보관되어 인터넷 없이 열립니다</li></ol>
      <div class="btns"><button class="btn" data-act="newf">+ 새 용역 만들기</button><button class="btn" data-act="sample">예시 도면으로 연습하기</button></div></div>`}
-  else if(q){const r=LIB.structs.filter(x=>x.name.toLowerCase().includes(q)||(x.pdfName||"").toLowerCase().includes(q)).sort(byName);
+  else if(q){const r=LIB.structs.filter(kOK).filter(x=>x.name.toLowerCase().includes(q)||(x.pdfName||"").toLowerCase().includes(q)).sort(byName);
     h=r.length?`<div class="sgrid">${r.map(x=>cardHTML(x,true)).join("")}</div>`:`<p class="help">찾는 구조물이 없습니다.</p>`}
-  else if(F){const r=LIB.structs.filter(x=>x.folderId===F.id).sort(byName);
+  else if(F){const r=LIB.structs.filter(x=>x.folderId===F.id&&kOK(x)).sort(byName);
     h=`<div class="hsec"><span>구조물 ${r.length}개</span><span><button class="btn" data-act="renf">용역 이름 변경</button><button class="btn" data-act="delf">용역 삭제</button></span></div>`+
       (r.length?`<div class="sgrid">${r.map(x=>cardHTML(x,false)).join("")}</div>`:`<div class="hempty"><h3>이 용역에 아직 구조물이 없습니다</h3>위쪽 <b>구조물 추가 (PDF)</b>를 눌러 망도 PDF를 넣으세요. 여러 개를 한 번에 골라도 됩니다.</div>`)}
-  else{const rec=LIB.structs.filter(x=>x.updated).sort((a,b)=>b.updated-a.updated).slice(0,4);
+  else{const rec=LIB.structs.filter(x=>x.updated&&kOK(x)).sort((a,b)=>b.updated-a.updated).slice(0,4);
     if(rec.length)h+=`<div class="hsec"><span>최근 작업</span></div><div class="sgrid">${rec.map(x=>cardHTML(x,true)).join("")}</div>`;
-    for(const f of LIB.folders){const r=LIB.structs.filter(x=>x.folderId===f.id).sort(byName);if(!r.length)continue;
+    for(const f of LIB.folders){const r=LIB.structs.filter(x=>x.folderId===f.id&&kOK(x)).sort(byName);if(!r.length)continue;
       h+=`<div class="hsec"><span>${esc(f.name)} · ${r.length}</span></div><div class="sgrid">${r.map(x=>cardHTML(x,false)).join("")}</div>`}
     h+=`<p class="help"><button class="btn" data-act="sample" style="border:1px solid var(--line)">예시 도면으로 연습하기</button></p>`}
-  $("#hBody").innerHTML=h;renderStore()}
+  $("#hBody").innerHTML=tabs+h;renderStore()}
 $("#fList").onclick=e=>{const b=e.target.closest("[data-f]");if(b){$("#hSearch").value="";setFolder(b.dataset.f)}};
 $("#hSearch").oninput=()=>renderHome();
 $("#hNewF").onclick=()=>folderModal();
 $("#hAdd").onclick=()=>$("#fileIn").click();
-$("#hBody").addEventListener("click",e=>{const m=e.target.closest("[data-m]");if(m){e.stopPropagation();cardMenu(m.dataset.m,m);return}
+$("#hBody").addEventListener("click",e=>{const kf=e.target.closest("[data-kf]");if(kf){curKind=kf.dataset.kf;try{localStorage.setItem("mdn.curKind",curKind)}catch(err){}renderHome();return}
+  const m=e.target.closest("[data-m]");if(m){e.stopPropagation();cardMenu(m.dataset.m,m);return}
   const a=e.target.closest("[data-act]");if(a){const k=a.dataset.act;if(k==="newf")folderModal();if(k==="sample")openSample();if(k==="renf")folderModal(curFolder);if(k==="delf")deleteFolder(curFolder);return}
   const c=e.target.closest("[data-s]");if(c)openStruct(c.dataset.s)});
 $("#hBody").addEventListener("keydown",e=>{if(e.key==="Enter"){const c=e.target.closest&&e.target.closest("[data-s]");if(c&&!e.target.closest("[data-m]"))openStruct(c.dataset.s)}});
@@ -1227,16 +1318,20 @@ async function addStructs(files){
     if(await idbReq("pdfs","readwrite",s=>s.put(buf,st.key))){st.noPdf=false;st.pdfName=f.name;st.pdfSize=f.size;await libSave();renderHome();toast("PDF를 다시 넣었습니다")}return}
   let fid=curFolder!=="all"&&LIB.folders.find(f=>f.id===curFolder)?curFolder:null;
   if(!fid){if(LIB.folders.length===1)fid=LIB.folders[0].id;else{const nf={id:uid(),name:LIB.folders.length?"미분류":"기본 용역",created:Date.now()};const ex=LIB.folders.find(f=>f.name===nf.name);if(ex)fid=ex.id;else{LIB.folders.push(nf);fid=nf.id}}}
-  let ok=0,i=0;
+  let ok=0,i=0;const added=[];
   for(const f of files){i++;if(!/\.pdf$/i.test(f.name)&&f.type!=="application/pdf"){toast(`${f.name}: PDF가 아닙니다`);continue}
     toast(`가져오는 중… (${i}/${files.length}) ${f.name}`,60000);
     const buf=new Uint8Array(await f.arrayBuffer());let pages=0;
     try{const d=await pdfjsLib.getDocument({data:buf.slice(0),isEvalSupported:false}).promise;pages=d.numPages;d.destroy()}catch(e){toast(`${f.name}: PDF를 열 수 없습니다`,3000);continue}
     const id=uid(),key="s:"+id;if(!(await idbReq("pdfs","readwrite",s=>s.put(buf,key)))){toast("저장 공간이 부족해 더 넣을 수 없습니다",4000);break}
     const name=f.name.replace(/\.pdf$/i,"").replace(/[_]+/g," ").trim();
-    LIB.structs.push({id,folderId:fid,name,kind:guessKind(name),key,pdfName:f.name,pdfSize:f.size,pages,created:Date.now(),updated:0,nDam:0,nJ:0});ok++}
+    const st={id,folderId:fid,name,kind:curKind!=="all"?curKind:guessKind(name),key,pdfName:f.name,pdfSize:f.size,pages,created:Date.now(),updated:0,nDam:0,nJ:0};LIB.structs.push(st);added.push(st);ok++}
   curFolder=fid;try{localStorage.setItem("mdn.curFolder",fid)}catch(e){}
-  await libSave();renderHome();toast(ok?`구조물 ${ok}개를 '${fName(fid)}'에 추가했습니다. 이름은 ⋯ 메뉴에서 바꿀 수 있습니다`:"추가한 구조물이 없습니다",3500)}
+  await libSave();renderHome();toast(ok?`구조물 ${ok}개를 '${fName(fid)}'에 추가했습니다. 이름은 ⋯ 메뉴에서 바꿀 수 있습니다`:"추가한 구조물이 없습니다",3500);
+  const unk=added.filter(x=>x.kind!=="bridge"&&x.kind!=="tunnel");if(unk.length)askKind(unk)}
+function askKind(list){modal("교량인가요, 터널인가요?",`<p class="help" style="color:var(--ink)">${list.map(x=>esc(x.name)).slice(0,4).join(", ")}${list.length>4?` 외 ${list.length-4}개`:""}<br>종류에 맞는 부재위치(교량: 바닥판·거더… / 터널: 천정부·측벽부…)와 상태평가 기준이 나옵니다.</p>
+  <div class="mact"><button class="btn" id="kO">나중에</button><button class="btn primary" id="kB">교량</button><button class="btn primary" id="kT">터널</button></div>`);
+  const set=async k=>{for(const x of list)x.kind=k;await libSave();closeModal();renderHome()};$("#kB").onclick=()=>set("bridge");$("#kT").onclick=()=>set("tunnel");$("#kO").onclick=closeModal}
 async function openStruct(id){const st=LIB.structs.find(x=>x.id===id);if(!st)return;
   if(st.noPdf){toast("이 구조물의 PDF가 앱에 없습니다. ⋯ 메뉴 → PDF 다시 넣기",4000);return}
   toast(`${st.name} 여는 중…`,15000);const buf=await idbReq("pdfs","readonly",s=>s.get(st.key));
@@ -1261,14 +1356,14 @@ async function loadPdf(buf,name,size,doc,isSample,key,startPage){$("#busy").text
 /* ---------- export ---------- */
 function csvRowsFor(n){const lab=pageLabel(n);const out=[];
   for(const r of exRows(n)){const j=exJ(n,r),q=S.doc.pages[n]&&S.doc.pages[n].exq&&S.doc.pages[n].exq[r.no];const g=geomOfRow(r);const qv=rowQty(r,q);
-    const q0=rowQty(r),inc=j==="prog"?incItemOf(n,r.no):null;
+    const q0=rowQty(r),inc=j==="prog"?incItemOf(n,r.no):null;const ci=inc&&inc.chg?inc:null;
     out.push({페이지:n,도면명:lab,연번:r.no,구분:"기존",적출년도:r.yr,결함종류:r.name,폭:r.w,길이:r.L,깊이:r.d,
-      물량:f2(q0.v),단위:q0.u,개소:r.n,판정:jName(j),PDF비고:r.note,"진행(이번 조사)":q?`${rowQtyText(r,q)} (${f2(qv.v)}${qv.u})${inc?` → 증가분 ${inc.no}번`:""}`:"",보수년월:r.ry,"공법명/자재명":r.m,보수물량:r.rq,도면표기:rowQtyText(r),사진번호:phText(S.doc.pages[n]&&S.doc.pages[n].exp&&S.doc.pages[n].exp[r.no])})}
+      물량:f2(q0.v),단위:q0.u,개소:r.n,판정:jName(j),PDF비고:r.note,"변경(이번 조사)":q?`${rowQtyText(r,q)} (${f2(qv.v)}${qv.u})${inc&&!ci?` → 증가분 ${inc.no}번`:""}`:"",부재위치:ci?ci.mem||"":"",상태등급:ci?ci.gr||"":"",보수년월:r.ry,"공법명/자재명":r.m,보수물량:r.rq,도면표기:rowQtyText(r),사진번호:phText(S.doc.pages[n]&&S.doc.pages[n].exp&&S.doc.pages[n].exp[r.no])})}
   for(const it of drawnRows(n)){const t=typeOf(it),q=qtyValue(it);
-    out.push({페이지:n,도면명:lab,연번:it.no||"",구분:it.prog?"신규(진행분)":it.st==="new"?"신규":it.st==="rep"?"보수(추가기입)":"기존(추가기입)",적출년도:it.yr||"",결함종류:t.name+cwSuffix(it),폭:q.u==="m"?it.w:q.u==="㎡"?it.a:"",길이:q.u==="m"?it.L:q.u==="㎡"?it.b:"",깊이:it.T!==""&&it.T!=null?fmt(it.T/1000):"",
-      물량:f2(q.v),단위:q.u,개소:it.n||1,판정:it.st==="new"?"신규":stName(it.st),PDF비고:it.prog?`기존 ${it.prog}번 진행분`:"","진행(이번 조사)":"",보수년월:"","공법명/자재명":"",보수물량:"",도면표기:qtyText(it),사진번호:phText(it.ph)})}
+    out.push({페이지:n,도면명:lab,연번:it.no||"",구분:it.chg?"변경":it.prog?"신규(진행분)":it.st==="new"?"신규":it.st==="rep"?"보수(추가기입)":"기존(추가기입)",적출년도:it.yr||"",결함종류:t.name+cwSuffix(it),폭:q.u==="m"?it.w:q.u==="㎡"?it.a:"",길이:q.u==="m"?it.L:q.u==="㎡"?it.b:"",깊이:it.T!==""&&it.T!=null?fmt(it.T/1000):"",
+      물량:f2(q.v),단위:q.u,개소:it.n||1,판정:it.st==="new"?"신규":stName(it.st),PDF비고:it.chg?`기존 ${it.chg}번 변경(${tagText(it)})`:it.prog?`기존 ${it.prog}번 진행분`:"","변경(이번 조사)":"",부재위치:it.mem||"",상태등급:it.gr||"",보수년월:"","공법명/자재명":"",보수물량:"",도면표기:qtyText(it),사진번호:phText(it.ph)})}
   return out.sort((a,b)=>(+a.연번||0)-(+b.연번||0))}
-function toCSV(rows){const ks=["페이지","도면명","연번","구분","적출년도","결함종류","폭","길이","깊이","물량","단위","개소","판정","PDF비고","진행(이번 조사)","보수년월","공법명/자재명","보수물량","도면표기","사진번호"];
+function toCSV(rows){const ks=["페이지","도면명","연번","구분","적출년도","결함종류","폭","길이","깊이","물량","단위","개소","판정","PDF비고","변경(이번 조사)","부재위치","상태등급","보수년월","공법명/자재명","보수물량","도면표기","사진번호"];
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};return"﻿"+ks.join(",")+"\n"+rows.map(r=>ks.map(k=>q(r[k])).join(",")).join("\n")+"\n"}
 async function saveFile(name,data){let dl=null;try{if(window.claude&&window.claude.use)dl=await window.claude.use("downloads")}catch(e){}
   const blob=data instanceof Blob?data:new Blob([data]);
@@ -1282,7 +1377,7 @@ $("#bExport").onclick=()=>{commitLabel();const tp=touchedPages();const nNew=tp.r
   modal("내보내기",`<div class="exl">
    <button id="xCsv"><b>손상물량표 (.csv) — 열람·기입한 페이지</b><small>${pagesKnown().length}개 페이지 · 기존(PDF 물량표)+이번 기입 · 연번·적출년도·결함종류·폭·길이·물량·단위·개소·판정</small></button>
    <button id="xCsvAll"><b>손상물량표 (.csv) — 전체 ${S.count}페이지</b><small>모든 페이지의 기존 손상을 읽어서 함께 내보냅니다 · 시간이 걸립니다</small></button>
-   <button id="xPdfM"><b>기입한 망도 PDF — 기입한 페이지만</b><small>${tp.length}개 페이지 · 신규 ${nNew}건 · 기존 손상 판정(보수·삭제·진행) 표시 포함</small></button>
+   <button id="xPdfM"><b>기입한 망도 PDF — 기입한 페이지만</b><small>${tp.length}개 페이지 · 신규 ${nNew}건 · 기존 손상 판정(보수·삭제·변경) 표시 포함</small></button>
    <button id="xPdfA"><b>기입한 망도 PDF — 전체 ${S.count}페이지</b><small>원본 전체에 표기를 얹음</small></button>
    <button id="xJson"><b>작업 파일 (.json)</b><small>좌표·수량·판정 원자료 · 다른 기기에서 이어서 작업하거나 Claude에게 CAD/물량/보고서 작업을 맡길 때 사용</small></button>
    <button id="xMerge"><b>여러 탭 작업 파일 합치기</b><small>탭마다 저장한 .json 여러 개를 한 번에 골라 통합본으로 합칩니다 · 신규 번호를 다시 매기고 중복 의심 건을 표시</small></button>
@@ -1296,7 +1391,7 @@ $("#bExport").onclick=()=>{commitLabel();const tp=touchedPages();const nNew=tp.r
 function saveJson(){if(S.isSample){toast("예시 도면은 저장하지 않습니다. 목록에서 구조물을 여세요");return}commitLabel();const ex={};for(const k in S.ex)ex[k]=S.ex[k].rows;
   const d=new Date(),t=`${stamp()}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}`;
   const who=(S.opt.by||"").replace(/[\\/:*?"<>|\s]+/g,"");
-  saveFile(`${base()}_작업_${who?who+"_":""}${t}.json`,JSON.stringify({app:"망도노트",ver:2,savedAt:d.toISOString(),pdf:{name:S.name,size:S.size,pages:S.count},curYear:S.opt.curYear,tag:S.doc.tag||"",fs:S.doc.fs||"",lib:S.lib,opt:{fs:S.opt.fs,hatchSp:S.opt.hatchSp,xch:S.opt.xch},
+  saveFile(`${base()}_작업_${who?who+"_":""}${t}.json`,JSON.stringify({app:"망도노트",ver:2,savedAt:d.toISOString(),pdf:{name:S.name,size:S.size,pages:S.count},curYear:S.opt.curYear,tag:S.doc.tag||"",kind:kindNow(),mem:S.doc.mem||"",fs:S.doc.fs||"",lib:S.lib,opt:{fs:S.opt.fs,hatchSp:S.opt.hatchSp,xch:S.opt.xch},
     coord:"pdf.js 뷰포트(scale=1, 페이지 회전 적용) 좌표, 단위 pt, 원점 좌상단",pages:S.doc.pages,existing:ex,quantities:pagesKnown().flatMap(csvRowsFor)},null,1)).then(ok=>{if(ok){S.dirty=false;$("#dirty").hidden=true;if(S.cur){S.cur.jsonAt=Date.now()+1000;libSave()}}})}
 $("#bSave").onclick=saveJson;
 $("#bRenum").onclick=async()=>{snap();const ds=page().items.filter(i=>i.kind==="damage");ds.forEach(i=>delete i.dup);
@@ -1304,7 +1399,7 @@ $("#bRenum").onclick=async()=>{snap();const ds=page().items.filter(i=>i.kind==="
   await renumberPage(S.n,"pos");redraw();autosave();toast("이 페이지 신규 번호를 위치순으로 다시 매겼습니다")};
 $("#jsonIn").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const j=JSON.parse(await f.text());
   if(!j.pages)throw 0;if(j.pdf&&j.pdf.name!==S.name)toast(`주의: 작업 파일은 '${j.pdf.name}' 기준입니다`,3500);
-  S.doc={pages:j.pages};if(j.tag!==undefined)S.doc.tag=j.tag;if(j.fs)S.doc.fs=+j.fs;if(j.lib){for(const t of j.lib)if(!S.lib.find(x=>x.id===t.id))S.lib.push(t);sv("mdn.lib3",S.lib)}closeModal();await gotoPage(1);autosave();toast("작업 파일을 불러왔습니다")}catch(err){toast("작업 파일 형식이 아닙니다")}};
+  S.doc={pages:j.pages};if(j.tag!==undefined)S.doc.tag=j.tag;if(j.kind)S.doc.kind=j.kind;if(j.mem)S.doc.mem=j.mem;if(j.fs)S.doc.fs=+j.fs;if(j.lib){for(const t of j.lib)if(!S.lib.find(x=>x.id===t.id))S.lib.push(t);sv("mdn.lib3",S.lib)}closeModal();await gotoPage(1);autosave();toast("작업 파일을 불러왔습니다")}catch(err){toast("작업 파일 형식이 아닙니다")}};
 
 function hexRgb(h){const n=parseInt(h.slice(1),16);return PDFLib.rgb((n>>16&255)/255,(n>>8&255)/255,(n&255)/255)}
 async function exportPdf(onlyMarked){closeModal();const marked=touchedPages();
@@ -1354,7 +1449,7 @@ function overlapDup(a,b){if(a.type!==b.type)return false;const g=libById(a.type)
   if(g==="line")return polyDist(a.pts[0],b.pts)<6||polyDist(b.pts[0],a.pts)<6;
   const inter=ix*iy,uni=(A.w+2)*(A.h+2)+(B.w+2)*(B.h+2)-inter;return inter/uni>.3}
 async function renumberPage(n,order){await ensureEx(n);const p=page(n);let no=(S.ex[n]&&S.ex[n].maxNo)||0;for(const r of exRows(n))no=Math.max(no,r.no);
-  const ds=p.items.filter(i=>i.kind==="damage");
+  const ds=p.items.filter(i=>i.kind==="damage"&&!i.chg);
   ds.sort(order==="time"?(a,b)=>(a.t||0)-(b.t||0):(a,b)=>{const A=itemRef(a),B=itemRef(b);return Math.abs(A[0]-B[0])>8?A[0]-B[0]:A[1]-B[1]});
   for(const it of ds)it.no=++no}
 $("#mergeIn").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(!files.length)return;
@@ -1423,8 +1518,8 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
    <label>삭제 색<input id="oC4" type="color" value="${o.stDel}"></label></div>
   <h4>적출년도별 색 (기존 손상)</h4><p class="help">도면 물량표에서 읽은 연도입니다. 비워 두면 기본 색(검정)을 씁니다.</p>
   <div class="opt" id="yrCols">${ys.length?ys.map(y=>`<label>${y}년 적출<input type="color" data-yr="${y}" value="${o.yearColors[y]||o.stOld}"></label>`).join(""):`<span class="help">아직 읽은 연도가 없습니다. 도면 PDF를 열면 나타납니다.</span>`}</div>
-  <h4>손상 목록 · 단위 · 해치</h4><p class="help">길게 누르면 나오는 메뉴는 <b>단위(m · ㎡ · EA)</b>별로 묶여 나옵니다(키보드 1~9). <b>그리기</b>는 도면에 그리는 방식(선·면·점), <b>단위</b>는 물량 단위입니다. 손상마다 수량 입력 때 단위를 바꿀 수도 있습니다. <b>타원</b>을 켜면 대각선으로 끌었을 때 타원으로 그려집니다. <b>T</b>를 켜면 깊이(T=10mm) 칸, <b>Cw</b>를 켜면 면적 손상에 균열폭(cw=0.2㎜) 칸이 생깁니다.</p>
-  <div class="tw"><table class="lt"><thead><tr><th></th><th>물량표 명칭</th><th>도면 표기</th><th>그리기</th><th>단위</th><th>해치·선 모양</th><th>타원</th><th>T</th><th>Cw</th><th>폭 빠른선택(mm)</th><th></th></tr></thead><tbody id="libT"></tbody></table></div>
+  <h4>손상 목록 · 단위 · 해치</h4><p class="help">길게 누르면 나오는 메뉴는 <b>단위(m · ㎡ · EA)</b>별로 묶여 나옵니다(키보드 1~9). <b>그리기</b>는 도면에 그리는 방식(선·면·점), <b>단위</b>는 물량 단위입니다. 손상마다 수량 입력 때 단위를 바꿀 수도 있습니다. 면 손상은 모두 <b>네모</b>로 그려집니다(균열 등 선 손상 제외). <b>T</b>를 켜면 깊이(T=10mm) 칸, <b>Cw</b>를 켜면 면적 손상에 균열폭(cw=0.2㎜) 칸이 생깁니다.</p>
+  <div class="tw"><table class="lt"><thead><tr><th></th><th>물량표 명칭</th><th>도면 표기</th><th>그리기</th><th>단위</th><th>해치·선 모양</th><th>T</th><th>Cw</th><th>폭 빠른선택(mm)</th><th></th></tr></thead><tbody id="libT"></tbody></table></div>
   <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="libAdd" style="border:1px solid var(--line)">+ 손상 추가</button><button class="btn" id="libReset" style="border:1px solid var(--line)">기본값으로</button></div>
   <h4>표기</h4><div class="opt">
    <label>${S.pdf&&!S.isSample?"이 망도 라벨 크기 (pt)":"라벨 크기 기본값 (pt)"}<input id="oFs" type="number" step="0.5" min="2" max="20" value="${S.pdf&&!S.isSample?FSb():o.fs}"></label>
@@ -1440,7 +1535,7 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
    · <b>S펜으로 길게 누르기</b>(또는 펜 측면 버튼 누른 채 터치, PC는 우클릭) → 단위별 손상 메뉴<br>
    · 균열은 선을 따라, 면 손상은 대각선으로 끌거나 둘레를 한 바퀴. EA 손상은 메뉴에서 고르면 그 자리에 바로 찍힘<br>
    · 번호는 도면 물량표의 마지막 연번 다음부터 자동으로 이어집니다<br>
-   · <b>선택</b> 도구로 기존 손상 번호(점선 동그라미)를 누르면 <b>유지·진행·보수·삭제</b> 판정. 진행은 바뀐 규모를 입력<br>
+   · <b>선택</b> 도구로 기존 손상 번호(점선 동그라미)를 누르면 <b>유지·변경·보수·삭제</b> 판정. 변경은 바뀐 전체 물량을 입력한 뒤 변경된 범위를 그리면 같은 번호로 26.하 변경 표기<br>
    · 손가락: 한 손가락 이동, 두 손가락 확대/축소<br>
    · 단축키 <kbd>P</kbd> 펜 <kbd>V</kbd> 선택 <kbd>E</kbd> 지우개 <kbd>S</kbd> 손상메뉴 <kbd>F</kbd> 맞춤 <kbd>←</kbd><kbd>→</kbd> 페이지</div>`);
   renderLibT();
@@ -1456,7 +1551,6 @@ function renderLibT(){$("#libT").innerHTML=S.lib.map((t,i)=>{const pats=PATS_BY_
   <td><select data-k="geom">${Object.entries(GEOMS).map(([k,v])=>`<option value="${k}" ${t.geom===k?"selected":""}>${v}</option>`).join("")}</select></td>
   <td><select data-k="unit">${UNITS.map(u=>`<option value="${u}" ${(t.unit||UNIT[t.geom])===u?"selected":""}>${u}</option>`).join("")}</select></td>
   <td><select data-k="hatch">${Object.entries(pats).map(([k,v])=>`<option value="${k}" ${t.hatch===k?"selected":""}>${v}</option>`).join("")}</select></td>
-  <td style="text-align:center">${t.geom==="area"?`<input type="checkbox" data-k="shape" ${t.shape==="ellipse"?"checked":""} style="width:auto;min-height:0">`:""}</td>
   <td style="text-align:center"><input type="checkbox" data-k="depth" ${t.depth?"checked":""} style="width:auto;min-height:0"></td>
   <td style="text-align:center">${t.geom!=="line"?`<input type="checkbox" data-k="cw" ${t.cw?"checked":""} style="width:auto;min-height:0">`:""}</td>
   <td><input data-k="widths" value="${esc(t.widths||"")}" ${(t.unit||UNIT[t.geom])!=="m"?"disabled":""} placeholder="0.2,0.3"></td>
@@ -1512,7 +1606,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="2.3";
+const APP_VERSION="2.4";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
