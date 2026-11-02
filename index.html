@@ -167,6 +167,8 @@ button{cursor:pointer}
 #dmenu .mhelp{font-size:12px;color:var(--muted);padding:4px 10px 8px;margin:0}
 #dmenu .memh{align-items:center;background:var(--soft);border-radius:7px;margin:2px 2px 4px;color:var(--ink);font-size:12.5px}
 #dmenu .memh button{width:auto;padding:4px 10px;font-size:12px;border:1px solid var(--line);background:#fff}
+#dmenu .memt{padding:0 2px 4px}
+#dmenu .memt button{padding:5px 8px;font-size:12.5px;color:var(--muted)}
 #dmenu button[data-newdmg]{color:var(--accent);font-weight:600}
 .grd{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
 .grd small{color:var(--muted);font-size:11.5px;padding:0 2px}
@@ -736,6 +738,8 @@ function labelLayout(it,measure){const fs=FSb()*(it.ls||1),t=typeOf(it),W=measur
   let yy=yq;if(it.T!==""&&it.T!=null){yy+=fs*1.05;lines.push({t:`T=${fmt(it.T)}mm`,x:tx,y:yy,size:fs*.85,bold:false})}
   const tg=tagText(it);if(tg){yy+=fs*1.05;lines.push({t:tg,x:tx,y:yy,size:fs*.8,bold:false})}
   if(it.ph){yy+=fs*1.1;lines.push({t:phText(it.ph),x:tx,y:yy,size:fs*.9,bold:true,ph:true})}
+  /* 부재위치: 화면 확인용(설정에서 켜기/끄기). PDF·CAD 내보내기에는 절대 넣지 않음 (measure 있으면 내보내기) */
+  if(it.mem&&S.opt.showMem&&!measure){yy+=fs*1.05;lines.push({t:`[${it.mem}]`,x:tx,y:yy,size:fs*.75,bold:false,col:"#5b6472"})}
   const circ=no?{cx:x+r,cy:(hasTop?y1:yq)-fs*.32,r,no,size:no.length>2?fs*.62:no.length>1?fs*.74:fs*.8}:null;
   const w=(tx-x)+Math.max(...lines.map(l=>W(l.t,l.size)))+fs*.4;const top=(hasTop?y1:yq)-fs*.95;
   const bot=yy+fs*.3;return{box:{x:x-fs*.2,y:top,w,h:bot-top},circ,lines}}
@@ -759,7 +763,7 @@ function itemSVG(it){
   if(dist(an,[lb.x,lb.y+lb.h])>fs*1.6&&dist(an,[lb.x,lb.y])>fs*1.6)g+=`<path d="M${an[0]} ${an[1]}L${lb.x} ${lb.y+lb.h-fs*.2}" stroke="${c}" stroke-width=".3"/>`;
   const LO=labelLayout(it);
   if(LO.circ){const C=LO.circ;g+=`<circle cx="${C.cx.toFixed(2)}" cy="${C.cy.toFixed(2)}" r="${C.r.toFixed(2)}" fill="#fff" stroke="${c}" stroke-width="${(fs*.09).toFixed(2)}"/><text x="${C.cx.toFixed(2)}" y="${(C.cy+C.size*.36).toFixed(2)}" font-size="${C.size.toFixed(2)}" text-anchor="middle" font-weight="600" fill="${c}">${esc(C.no)}</text>`}
-  for(const l of LO.lines)g+=`<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="${l.size.toFixed(2)}" ${l.bold?'font-weight="600"':""} fill="${c}" stroke="#fff" stroke-width="${(fs*.22).toFixed(2)}" paint-order="stroke" stroke-linejoin="round">${esc(l.t)}</text>`;
+  for(const l of LO.lines)g+=`<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="${l.size.toFixed(2)}" ${l.bold?'font-weight="600"':""} fill="${l.col||c}" stroke="#fff" stroke-width="${(fs*.22).toFixed(2)}" paint-order="stroke" stroke-linejoin="round">${esc(l.t)}</text>`;
   if(S.rs&&S.rs.id===it.id){const hs=7/S.z;g+=`<rect x="${(lb.x-1).toFixed(2)}" y="${(lb.y-1).toFixed(2)}" width="${(lb.w+2).toFixed(2)}" height="${(lb.h+2).toFixed(2)}" fill="rgba(42,111,219,.06)" stroke="#2a6fdb" stroke-width="${(1.2/S.z).toFixed(2)}"/><rect x="${(lb.x+lb.w+1-hs/2).toFixed(2)}" y="${(lb.y+lb.h+1-hs/2).toFixed(2)}" width="${hs.toFixed(2)}" height="${hs.toFixed(2)}" fill="#2a6fdb"/>`}
   else if(S.sel===it.id){const b=bbox(it.pts),p=2;g+=`<rect x="${lb.x-1}" y="${lb.y-1}" width="${lb.w+2}" height="${lb.h+2}" fill="none" stroke="#2a6fdb" stroke-width=".5" stroke-dasharray="1.5 1"/><rect x="${b.x-p}" y="${b.y-p}" width="${b.w+p*2}" height="${b.h+p*2}" fill="none" stroke="#2a6fdb" stroke-width=".6" stroke-dasharray="2 1.2"/>`}
   return g+"</g>"}
@@ -911,7 +915,7 @@ function memPickerHTML(){const k=kindNow();let h=`<div class="mh"><span>부재�
 function openMenu(cx,cy,anchor,mode="new",forceMem){menuAnchor=anchor;menuMode=mode;menuXY=[cx,cy];
   if(mode==="new"&&(forceMem||!S.doc.mem)){dmenu.innerHTML=memPickerHTML();placeMenu(cx,cy);return}
   let h="";let k=0;
-  if(mode==="new")h+=`<div class="mh memh"><span>부재 <b>${esc(S.doc.mem)}</b></span><span><button data-kswap="1" title="교량/터널 바꾸기">${kindNow()==="bridge"?"교량":"터널"} ⇄</button> <button data-memchg="1">변경</button></span></div>`;
+  if(mode==="new")h+=`<div class="mh memh"><span>부재 <b>${esc(S.doc.mem)}</b></span><span><button data-kswap="1" title="교량/터널 바꾸기">${kindNow()==="bridge"?"교량":"터널"} ⇄</button> <button data-memchg="1">변경</button></span></div><div class="mh memt"><button data-memshow="1">${S.opt.showMem?"☑":"☐"} 도면에 부재위치 표시 (화면만)</button></div>`;
   const rec=S.recent.map(id=>S.lib.find(t=>t.id===id)).filter(Boolean).slice(0,3);
   if(rec.length&&mode==="new"){h+=`<div class="mh">최근</div>`;rec.forEach(t=>h+=menuBtn(t,""))}
   for(const g of UNITS){const ts=S.lib.filter(t=>!t.custom&&(t.unit||UNIT[t.geom])===g);if(!ts.length)continue;
@@ -936,6 +940,7 @@ function hideMenu(){dmenu.hidden=true}
 dmenu.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const D=b.dataset;
   if(D.kind){setKind(D.kind);dmenu.innerHTML=memPickerHTML();placeMenu(...menuXY);return}
   if(D.mem!=null){S.doc.mem=D.mem;autosave();openMenu(menuXY[0],menuXY[1],menuAnchor,"new");return}
+  if(D.memshow){S.opt.showMem=!S.opt.showMem;saveOpt();redraw();openMenu(menuXY[0],menuXY[1],menuAnchor,"new");return}
   if(D.kswap){hideMenu();kindSwap();return}
   if(D.memchg){openMenu(menuXY[0],menuXY[1],menuAnchor,"new",true);return}
   if(D.memadd){hideMenu();addMember(()=>openMenu(menuXY[0],menuXY[1],menuAnchor,"new"));return}
@@ -1434,9 +1439,8 @@ async function exportPdf(onlyMarked){closeModal();const marked=touchedPages();
         for(const q of PR.segs)line([q[0],q[1]],[q[2],q[3]],c,q[4]);
         for(const d of PR.dots){const A=cv([d[0],d[1]]);P.drawCircle({x:A[0],y:A[1],size:d[2],color:c})}
         for(const r of PR.rings){const A=cv([r[0],r[1]]);P.drawCircle({x:A[0],y:A[1],size:r[2],borderColor:c,borderWidth:r[3]})}
-        const an=anchorOf(it),lb=labelBox(it);
-        if(dist(an,[lb.x,lb.y+lb.h])>fs*1.6&&dist(an,[lb.x,lb.y])>fs*1.6)line(an,[lb.x,lb.y+lb.h-fs*.2],c,.3);
-        const LO=labelLayout(it,(t,sz)=>font.widthOfTextAtSize(t,sz));box(LO.box.x,LO.box.y,LO.box.w,LO.box.h);
+        const LO=labelLayout(it,(t,sz)=>font.widthOfTextAtSize(t,sz));const an=anchorOf(it),lb=LO.box;
+        if(dist(an,[lb.x,lb.y+lb.h])>fs*1.6&&dist(an,[lb.x,lb.y])>fs*1.6)line(an,[lb.x,lb.y+lb.h-fs*.2],c,.3);box(LO.box.x,LO.box.y,LO.box.w,LO.box.h);
         if(LO.circ){const C=LO.circ,A=cv([C.cx,C.cy]);P.drawCircle({x:A[0],y:A[1],size:C.r,color:PDFLib.rgb(1,1,1),borderColor:c,borderWidth:fs*.09});
           const nw=font.widthOfTextAtSize(C.no,C.size);text(C.no,C.cx-nw/2,C.cy+C.size*.36,C.size,c)}
         for(const l of LO.lines)text(l.t,l.x,l.y,l.size,c)}}
@@ -1533,6 +1537,7 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
    <label>면적 곱하기 표기<select id="oX"><option value="X" ${o.xch==="X"?"selected":""}>0.3X0.5</option><option value="x" ${o.xch==="x"?"selected":""}>0.3x0.5</option><option value="×" ${o.xch==="×"?"selected":""}>0.3×0.5</option></select></label>
    <label class="ck"><input id="oScale" type="checkbox" ${o.toScale?"checked":""}> 입력한 수량대로 축척에 맞춰 그리기</label>
    <label class="ck"><input id="oName" type="checkbox" ${o.showName?"checked":""}> 라벨에 손상명 표시</label>
+   <label class="ck"><input id="oMem" type="checkbox" ${o.showMem?"checked":""}> 라벨에 부재위치 표시 (화면 확인용 · PDF·CAD에는 안 나옴)</label>
    <label class="ck"><input id="oEx" type="checkbox" ${o.showEx?"checked":""}> 기존 손상 번호에 동그라미 표시</label>
    <label class="ck"><input id="oRep" type="checkbox" ${o.repeat?"checked":""}> 같은 손상 연속 입력</label>
    <label class="ck"><input id="oFinger" type="checkbox" ${o.fingerDraw?"checked":""}> 손가락으로도 그리기</label></div>
@@ -1547,7 +1552,7 @@ function openSettings(){const o=S.opt;const ys=knownYears().filter(y=>y!==String
   if($("#oTag"))$("#oTag").onchange=e=>{S.doc.tag=e.target.value;redraw();autosave()};
   const bind=(id,k,f=v=>v)=>{$(id).onchange=e=>{S.opt[k]=f(e.target.type==="checkbox"?e.target.checked:e.target.value);saveOpt();redraw()}};
   bind("#oBy","by",v=>v.trim());$("#oFs").onchange=e=>{const v=parseFloat(e.target.value);if(!(v>0))return;if(S.pdf&&!S.isSample){S.doc.fs=v;autosave()}else{S.opt.fs=v;saveOpt()}redraw()};bind("#oHs","hatchSp",parseFloat);bind("#oLw","lw",parseFloat);bind("#oLw2","lwThick",parseFloat);bind("#oYr","curYear",v=>parseInt(v)||new Date().getFullYear());
-  bind("#oC1","stNew");bind("#oC2","stOld");bind("#oC3","stRep");bind("#oC4","stDel");bind("#oX","xch");bind("#oName","showName");bind("#oScale","toScale");bind("#oEx","showEx");bind("#oRep","repeat");bind("#oFinger","fingerDraw");
+  bind("#oC1","stNew");bind("#oC2","stOld");bind("#oC3","stRep");bind("#oC4","stDel");bind("#oX","xch");bind("#oName","showName");bind("#oMem","showMem");bind("#oScale","toScale");bind("#oEx","showEx");bind("#oRep","repeat");bind("#oFinger","fingerDraw");
   $("#yrCols").onchange=e=>{const y=e.target.dataset.yr;if(!y)return;S.opt.yearColors[y]=e.target.value;saveOpt();redraw()};
   $("#libAdd").onclick=()=>{S.lib.push({id:"u"+uid(),name:"새 손상",short:"새 손상",geom:"area",unit:"㎡",hatch:"grid",widths:"",shape:""});saveLib()};
   let armReset=false;$("#libReset").onclick=e=>{if(!armReset){armReset=true;e.target.textContent="한 번 더 누르면 초기화";return}S.lib=JSON.parse(JSON.stringify(DEF_LIB));saveLib()}}
@@ -1611,7 +1616,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="2.4.1";
+const APP_VERSION="2.4.2";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
