@@ -423,7 +423,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc 
 
 /* ---------- defaults ---------- */
 const AREA_PATS={none:"없음(윤곽만)",solid:"채움",netcrack:"망상균열 (빗금 벽돌)",cross:"교차 X (재료분리)",grid:"격자 (박리·파손)",circles:"동그라미 (백태)",hex:"벌집 (누수·체수)",dotsdense:"촘촘한 점 (변색·녹물)",xmarks:"× 표시 (철판보강부)",diag:"사선 / (강재부식)",dashh:"가로 점선 (소성변형)",scour:"v 표시 (기초 세굴)",vert:"세로선 (보수흔적)",speckle:"얼룩 (이물질 퇴적)",rdiag:"사선 \\",horiz:"가로선",diagwide:"넓은 사선 /",rdiagwide:"넓은 사선 \\",dots:"점","netcrack+circles":"망상균열 + 백태","hex+circles":"누수 + 백태","grid+dots":"격자 + 점"};
-const LINE_STYLES={plain:"실선 (균열)",zigzag:"지그재그 (시공이음·층분리)",wave:"물결 (좌굴·변형)",rebar:"×══× (철근노출)",rebarcor:"×▨▨× (철근부식)",dashed:"점선"};
+const LINE_STYLES={plain:"실선 (균열)",zigzag:"지그재그 (시공이음·층분리)",wave:"물결 (좌굴·변형)",rebar:"×══× (철근노출)",rebarcor:"×▨▨× (철근부식)",dashed:"점선",crackef:"균열 + 둘레 동그라미 (균열부백태)"};
 AREA_PATS.rebarsym="×══× 사각형 (철근노출)";AREA_PATS.rebarcorsym="×▨▨× 사각형 (철근부식)";
 const POINT_SYMS={x:"⊗ 표시",star:"별 (펀칭·공동)",dot:"● 점"};
 const PATS_BY_GEOM={area:AREA_PATS,line:LINE_STYLES,point:POINT_SYMS};
@@ -436,7 +436,7 @@ const L_=(id,name,short,geom,unit,hatch,widths,shape)=>({id,name,short,geom,unit
 const DEF_LIB=[
  L_("c1","균열(Cw=0.3㎜미만)","균열","line","m","plain","0.1,0.2"),
  L_("c2","균열(Cw=0.3㎜이상)","균열","line","m","plain","0.3,0.4,0.5,1.0"),
- L_("cef","균열부백태(Cw=0.3㎜미만)","균열부백태","line","m","plain","0.1,0.2"),
+ L_("cef","균열부백태(Cw=0.3㎜미만)","균열부백태","line","m","crackef","0.1,0.2"),
  L_("crp","보수부균열(Cw=0.3㎜미만)","보수부균열","line","m","plain","0.1,0.2"),
  L_("crp2","보수부균열(Cw=0.3㎜이상)","보수부균열","line","m","plain","0.3,0.4,0.5,1.0"),
  L_("joint","시공이음분리","시공이음분리","line","m","zigzag"),
@@ -508,7 +508,7 @@ function ld(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}ca
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 S.lib=ld("mdn.lib3",null)||JSON.parse(JSON.stringify(DEF_LIB));
 for(const t of S.lib){if(FLAG_DEF[t.id]&&t.depth===undefined&&t.cw===undefined)Object.assign(t,FLAG_DEF[t.id]);if((t.id==="rebar"||t.id==="rcor")&&t.geom==="line"){const d=DEF_LIB.find(x=>x.id===t.id);Object.assign(t,{geom:"area",hatch:d.hatch,shape:"rect"})}}
-for(const t of S.lib)if(t.geom==="area"&&t.shape==="ellipse")t.shape="";
+for(const t of S.lib){if(t.geom==="area"&&t.shape==="ellipse")t.shape="";if(t.id==="cef"&&t.hatch==="plain")t.hatch="crackef"}
 if(!S.lib.find(t=>t.id==="crp2")){const d=DEF_LIB.find(t=>t.id==="crp2");const i=S.lib.findIndex(t=>t.id==="crp");S.lib.splice(i>=0?i+1:S.lib.length,0,JSON.parse(JSON.stringify(d)))}
 S.opt=Object.assign({},DEF_OPT,ld("mdn.opt2",{}));S.opt.memExtra=S.opt.memExtra||{bridge:[],tunnel:[]};S.opt.yearColors=S.opt.yearColors||{};
 S.recent=ld("mdn.recent2",[]);
@@ -684,6 +684,7 @@ function itemPrims(it,k){k=k||1;const t=libById(it.type),P={paths:[],segs:[],dot
       const X=(p,q)=>{const L=dist(p,q)||1,ux=(q[0]-p[0])/L,uy=(q[1]-p[1])/L,d=2.0*k;P.segs.push([p[0]+(ux-uy)*d*.7,p[1]+(uy+ux)*d*.7,p[0]-(ux-uy)*d*.7,p[1]-(uy+ux)*d*.7,w*.6],[p[0]+(ux+uy)*d*.7,p[1]+(uy-ux)*d*.7,p[0]-(ux+uy)*d*.7,p[1]-(uy-ux)*d*.7,w*.6])};
       X(pts[0],pts[1]);X(pts[pts.length-1],pts[pts.length-2]);
       if(sty==="rebarcor")walk(pts,.6*k,(x,y,nx,ny)=>{P.segs.push([x-nx*o,y-ny*o,x+nx*o+(ny)*.35*k,y+ny*o-(nx)*.35*k,w*.45])})}
+    else if(sty==="crackef"){P.paths.push({pts,w});let sg=1,i=0;walk(pts,1.7*k,(x,y,nx,ny)=>{if(i++%1===0){const o=(.95+.25*((i*7)%3)/2)*k*sg;P.rings.push([x+nx*o,y+ny*o,(.42+.12*((i*5)%3)/2)*k,.25*k]);sg=-sg}})}
     else P.paths.push({pts,w,dash:sty==="dashed"?[2*k,1.2*k]:null})}
   else if(t.geom==="area"&&(sty==="rebarsym"||sty==="rebarcorsym")){const B=bbox(it.pts),hor=B.w>=B.h,cx=B.x+B.w/2,cy=B.y+B.h/2,L=(hor?B.w:B.h),T=(hor?B.h:B.w);
     const o=Math.min(T*.18,.7*k),d=Math.max(.6*k,Math.min(T*.42,1.8*k)),w=S.opt.lw*k*.8,m=Math.min(d*1.1,L*.2);
@@ -1616,7 +1617,7 @@ window.__mdn=S;boot();
 <script>
 /* ---------- 웹앱: 오프라인 캐시 · 버전 확인 · 자동 업데이트 ---------- */
 (function(){
-const APP_VERSION="2.4.2";
+const APP_VERSION="2.4.3";
 const bar=document.querySelector("#bar"),brand=bar.querySelector(".brand");
 const b=document.createElement("button");b.id="verBadge";b.type="button";
 b.style.cssText="border:0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;min-height:30px;display:inline-flex;align-items:center;gap:5px";
