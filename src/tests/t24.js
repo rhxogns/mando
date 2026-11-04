@@ -1,0 +1,14 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1280,height:800},acceptDownloads:true});const p=await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file://'+process.cwd()+'/망도노트_오프라인.html');await p.waitForTimeout(1200);await p.fill('#lockPw','0502');await p.press('#lockPw','Enter');
+await p.click('#hNewF');await p.fill('#fNm','GTX');await p.click('#fOk');
+await p.setInputFiles('#fileIn',['out/sub.pdf']);await p.waitForSelector('#kT');await p.click('#kT');await p.click('.card');await p.waitForTimeout(3000);
+const bb=await (await p.$('#viewer')).boundingBox();
+await p.mouse.click(bb.x+300,bb.y+300,{button:'right'});await p.click('#dmenu [data-mem="측벽부"]');await p.click('#dmenu [data-memshow]');
+console.log('toggle:',await p.$eval('#dmenu .memt',e=>e.innerText));
+await p.click('#dmenu button[data-t="seep"]');await p.mouse.move(bb.x+300,bb.y+300);await p.mouse.down();await p.mouse.move(bb.x+360,bb.y+330,{steps:4});await p.mouse.up();
+await p.click('#qty [data-k="확인"]');await p.waitForTimeout(300);
+console.log('svg has mem:',await p.$eval('#ov',e=>e.innerHTML.includes('[측벽부]')));
+await p.click('#bExport');const [d]=await Promise.all([p.waitForEvent('download'),p.click('#xPdfM')]);await d.saveAs('out/t24.pdf');
+console.log(errs);await b.close()})();

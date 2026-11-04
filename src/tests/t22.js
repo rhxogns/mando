@@ -1,0 +1,20 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1280,height:800},acceptDownloads:true});const p=await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file://'+process.cwd()+'/망도노트_오프라인.html');await p.waitForTimeout(1200);await p.fill('#lockPw','0502');await p.press('#lockPw','Enter');
+await p.click('#hNewF');await p.fill('#fNm','서울시');await p.click('#fOk');
+await p.setInputFiles('#fileIn',['out/탄천1교_야장.pdf']);await p.waitForSelector('.card');await p.waitForTimeout(500);
+console.log('modal?',await p.$('#kB')?'yes':'no(guessed)');
+await p.click('.card');await p.waitForFunction(()=>document.querySelector('#pgCnt').textContent.includes('40'));await p.fill('#pgIn','30');await p.press('#pgIn','Enter');await p.waitForTimeout(3000);
+console.log('list:',await p.evaluate(()=>{const l=document.querySelector('#list');return (l?l.innerHTML.length:-1)+' panel hidden='+document.querySelector('#panel').hidden+' ex='+[...document.querySelectorAll('[data-ex]')].map(e=>e.dataset.ex).slice(0,8)}));await p.evaluate(()=>{if(document.querySelector('#panel').hidden)document.querySelector('#bPanel').click()});await p.waitForTimeout(500);await p.click('#list [data-ex="7"]');await p.waitForTimeout(300);
+console.log('selbar:',await p.$eval('#selbar',e=>e.innerText.replace(/\s+/g,' ')));
+await p.click('#selbar [data-j="prog"]');console.log('ex qty:',await p.$eval('#qty',e=>e.innerText.replace(/\s+/g,' ').slice(0,160)));
+await p.click('#qty [data-k="→"]');await p.click('#qty [data-k="3"]');await p.click('#qty [data-k="확인"]');await p.waitForTimeout(300);
+console.log('armed:',await p.$eval('#armedTx',e=>e.textContent),'| toast:',await p.$eval('#toast',e=>e.textContent).catch(()=>''));
+const bb=await (await p.$('#viewer')).boundingBox();
+await p.mouse.move(bb.x+640,bb.y+400);await p.mouse.down();await p.mouse.move(bb.x+700,bb.y+420,{steps:4});await p.mouse.up();
+// may hit member picker? no: drawing doesn't need member
+console.log('chg qty:',await p.$eval('#qty',e=>e.innerText.replace(/\s+/g,' ').slice(0,220)));await p.click('#qty [data-k="확인"]');
+await p.waitForTimeout(300);await p.screenshot({path:'out/t22.png'});
+await p.click('#bExport');const [d]=await Promise.all([p.waitForEvent('download'),p.click('#xCsv')]);await d.saveAs('out/t22.csv');
+console.log('errs',errs);await b.close()})();

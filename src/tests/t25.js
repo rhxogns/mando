@@ -1,0 +1,14 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1280,height:800}});const p=await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file://'+process.cwd()+'/망도노트_오프라인.html');await p.waitForTimeout(1200);await p.fill('#lockPw','0502');await p.press('#lockPw','Enter');
+await p.click('#hNewF');await p.fill('#fNm','GTX');await p.click('#fOk');
+await p.setInputFiles('#fileIn',['out/sub.pdf']);await p.waitForSelector('#kT');await p.click('#kT');await p.click('.card');await p.waitForTimeout(3000);
+const bb=await (await p.$('#viewer')).boundingBox();
+for(let z=0;z<4;z++)await p.mouse.wheel(0,-300);await p.waitForTimeout(500);
+await p.mouse.click(bb.x+300,bb.y+300,{button:'right'});await p.click('#dmenu [data-mem="측벽부"]');
+const sw=await (await p.$('#dmenu button[data-t="cef"]')).screenshot({path:'out/t25_menu.png'});
+await p.click('#dmenu button[data-t="cef"]');await p.mouse.move(bb.x+300,bb.y+250);await p.mouse.down();
+for(const [x,y] of [[310,300],[300,350],[320,400],[315,450]])await p.mouse.move(bb.x+x,bb.y+y,{steps:5});await p.mouse.up();
+await p.click('#qty [data-k="확인"]');await p.waitForTimeout(400);
+await p.screenshot({path:'out/t25.png',clip:{x:bb.x+200,y:bb.y+200,width:300,height:300}});console.log(errs);await b.close()})();

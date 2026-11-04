@@ -1,0 +1,41 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1280,height:800},acceptDownloads:true});const p=await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file://'+process.cwd()+'/망도노트_오프라인.html');await p.waitForTimeout(1200);await p.fill('#lockPw','0502');await p.press('#lockPw','Enter');
+await p.click('#hNewF');await p.fill('#fNm','GTX');await p.click('#fOk');
+await p.setInputFiles('#fileIn',['out/sub.pdf']);await p.waitForSelector('.card');await p.waitForTimeout(800);
+console.log('kind modal:',await p.$eval('#modal',e=>e.innerText.slice(0,40)).catch(()=>'none'));
+await p.click('#kT');await p.waitForTimeout(300);
+console.log('tabs:',await p.$eval('.ktabs',e=>e.innerText.replace(/\s+/g,' ')));
+await p.click('.card');await p.waitForTimeout(3000);
+const bb=await (await p.$('#viewer')).boundingBox();
+await p.mouse.click(bb.x+300,bb.y+300,{button:'right'});
+console.log('menu1:',(await p.$eval('#dmenu',e=>e.innerText.replace(/\s+/g,' '))).slice(0,120));
+await p.click('#dmenu button[data-mem="측벽부"]');
+console.log('menu2 head:',(await p.$eval('#dmenu',e=>e.innerText.replace(/\s+/g,' '))).slice(0,60));
+console.log('custom section:',(await p.$eval('#dmenu',e=>e.innerText.replace(/\s+/g,' '))).slice(-60));
+await p.click('#dmenu button[data-t="seep"]');
+await p.mouse.move(bb.x+300,bb.y+300);await p.mouse.down();await p.mouse.move(bb.x+360,bb.y+330,{steps:4});await p.mouse.up();
+console.log('fields:',await p.$eval('#qty .fields',e=>e.innerText.replace(/\s+/g,' ')));
+for(const k of ['1','.','5','→','1','0'])await p.click(`#qty [data-k="${k}"]`);
+await p.click('#qty .fld[data-f="gr"]');console.log('grade box:',await p.$eval('#qty .grd',e=>e.innerText.replace(/\s+/g,' ')));
+await p.click('#qty .grd button[data-c="c"]');await p.click('#qty [data-k="확인"]');
+// second damage: member auto
+await p.mouse.click(bb.x+500,bb.y+300,{button:'right'});console.log('auto mem head:',(await p.$eval('#dmenu .memh',e=>e.innerText)));
+await p.click('#dmenu button[data-newdmg]');await p.fill('#tmIn','들뜸');await p.click('#tmU [data-u="㎡"]');await p.click('#tmOk');await p.waitForTimeout(200);
+await p.mouse.move(bb.x+500,bb.y+300);await p.mouse.down();await p.mouse.move(bb.x+540,bb.y+320,{steps:3});await p.mouse.up();
+console.log('custom fields:',await p.$eval('#qty .fields',e=>e.innerText.replace(/\s+/g,' ')));
+await p.click('#qty [data-k="확인"]');
+// existing 변경
+const ex=await p.$('#panel [data-ex]');console.log('has ex row:',!!ex);
+if(ex){await p.evaluate(()=>{document.querySelector('#panel').hidden=false});await ex.click();await p.waitForTimeout(300);
+ console.log('selbar:',await p.$eval('#selbar',e=>e.innerText.replace(/\s+/g,' ')));
+ await p.click('#selbar [data-j="prog"]');console.log('ex qty:',await p.$eval('#qty .qh',e=>e.innerText.replace(/\s+/g,' ')));
+ await p.click('#qty [data-k="9"]');await p.click('#qty [data-k="확인"]');await p.waitForTimeout(300);
+ console.log('armed:',await p.$eval('#armedTx',e=>e.textContent));
+ await p.mouse.move(bb.x+640,bb.y+400);await p.mouse.down();await p.mouse.move(bb.x+700,bb.y+420,{steps:4});await p.mouse.up();
+ console.log('chg qty:',await p.$eval('#qty',e=>e.innerText.replace(/\s+/g,' ').slice(0,200)));await p.click('#qty [data-k="확인"]');}
+await p.screenshot({path:'out/t21.png'});
+await p.click('#bExport');const [d]=await Promise.all([p.waitForEvent('download'),p.click('#xCsv')]);await d.saveAs('out/t21.csv');
+const [d2]=await Promise.all([p.waitForEvent('download'),(async()=>{await p.click('#bExport');await p.click('#xJson')})()]);await d2.saveAs('out/t21.json');
+console.log('errs',errs);await b.close()})();

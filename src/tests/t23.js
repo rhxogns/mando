@@ -1,0 +1,16 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:1280,height:800}});const p=await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file://'+process.cwd()+'/망도노트_오프라인.html');await p.waitForTimeout(1200);await p.fill('#lockPw','0502');await p.press('#lockPw','Enter');
+await p.click('#hNewF');await p.fill('#fNm','서울시');await p.click('#fOk');
+await p.setInputFiles('#fileIn',['out/탄천1교_야장.pdf']);await p.waitForSelector('.card');await p.waitForTimeout(500);
+console.log('tabs1',await p.$eval('.ktabs',e=>e.innerText.replace(/\s+/g,' ')));
+await p.click('.card .more');console.log('menu',await p.$eval('#cmenu',e=>e.innerText.replace(/\s+/g,' | ')));
+await p.click('#cmenu [data-c="toT"]');await p.waitForTimeout(400);
+console.log('tabs2',await p.$eval('.ktabs',e=>e.innerText.replace(/\s+/g,' ')),'|',await p.$eval('.card .kind',e=>e.innerText));
+await p.click('.card');await p.waitForTimeout(3000);const bb=await (await p.$('#viewer')).boundingBox();
+await p.mouse.click(bb.x+300,bb.y+300,{button:'right'});await p.click('#dmenu [data-mem="측벽부"]');
+await p.mouse.click(bb.x+300,bb.y+300,{button:'right'});console.log('head',await p.$eval('#dmenu .memh',e=>e.innerText.replace(/\s+/g,' ')));
+await p.click('#dmenu [data-kswap]');await p.click('#kwOk');await p.waitForTimeout(200);
+await p.mouse.click(bb.x+300,bb.y+300,{button:'right'});console.log('after swap',(await p.$eval('#dmenu',e=>e.innerText.replace(/\s+/g,' '))).slice(0,70));
+console.log(errs);await b.close()})();
